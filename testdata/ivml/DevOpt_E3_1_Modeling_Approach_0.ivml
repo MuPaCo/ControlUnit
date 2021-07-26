@@ -1,0 +1,167 @@
+/**
+ * This project contains a (simple) example of how to use the DevOpt
+ * modeling approach and its modeling elements. The example outlines the
+ * model of a smart-plug using a selection of the modeling elements.
+ */
+project DevOpt_E3_1_Modeling_Approach {
+
+    import DevOpt_System;
+
+    // >>>>>>>>>>>>>> Smart-Plug Identification Definition >>>>>>>>>>>>>>
+    Identification smartPlugIdentification = {
+        identifier = "Example-SmartPlug",
+        host = "192.168.1.11",
+        port = 1883
+    };
+
+    IdentificationDescription smartPlugIdentificationDescription = {
+        description = smartPlugIdentification
+    };
+    // <<<<<<<<<<<<<< Smart-Plug Identification Definition <<<<<<<<<<<<<<
+
+
+    // >>>>>>>>>>>>>>>>> Smart-Plug Software Definition >>>>>>>>>>>>>>>>>	
+    Identification smartPlugSoftwareSourceIdentification = {
+        identifier = "SmartPlug Software Download",
+        host = "https://dl.sp.vendor.url",
+        port = 80
+    };
+
+    Software smartPlugSoftware = {
+        previousVersion = "v1.0",
+        currentVersion = "v1.1",
+        source = smartPlugSoftwareSourceIdentification
+    };
+
+    SoftwareDescription smartPlugSoftwareDescription = {
+        description = smartPlugSoftware
+    };
+    // <<<<<<<<<<<<<<<<< Smart-Plug Software Definition <<<<<<<<<<<<<<<<<
+
+
+    // >>>>>>>>>>>>>> Smart-Plug Runtime (Data) Definition >>>>>>>>>>>>>>
+    RealParameter smartPlugRuntimePowerConsumption = {
+        name = "CurrentPowerConsumption",
+        value = null // "value" will be added during monitoring
+    };
+
+    RuntimeDate smartPlugRuntimeDate = {
+        timestamp = null, // "timestamp" will be added during monitoring
+        monitoringScope = "@Monitor(id=PowerConsumption)",
+        value = smartPlugRuntimePowerConsumption,
+        expressions = null // no "expressions" (restrictions) for this date
+    };
+
+    RuntimeDescription smartPlugRuntimeDescription = {
+        description = smartPlugRuntimeDate
+    };
+    // <<<<<<<<<<<<<< Smart-Plug Runtime (Data) Definition <<<<<<<<<<<<<<
+
+
+    // >>>>>>>>>>>>>> Smart-Plug Configuration Definition >>>>>>>>>>>>>>>
+    BooleanParameter smartPlugConfigurationParameter = {
+        name = "PowerSupplyEnabled",
+        value = false // default value for this parameter
+    };
+
+    Configuration smartPlugConfiguration = {
+        parameters = {smartPlugConfigurationParameter},
+        expressions = null // no "expressions" (restrictions) for this configuration
+    };
+
+    ConfigurationDescription smartPlugConfigurationDescription = {
+        description = smartPlugConfiguration
+    };
+    // <<<<<<<<<<<<<< Smart-Plug Configuration Definition <<<<<<<<<<<<<<<
+
+
+    // >>>>>>>>>>> Smart-Plug (Switch-Off) Control Definition >>>>>>>>>>>
+    RealParameter noPowerConsumption = {
+        name = "NoPowerConsumption",
+        value = 0
+    };
+
+    TargetedDecreasingEffect smartPlugDisableControlInstructionEffect1 = {
+        affectedParameter = smartPlugRuntimePowerConsumption,
+        target = noPowerConsumption,
+        tolerance = 5.0
+    };
+
+    BooleanParameter disabled = {
+        name = "Disabled",
+        value = false
+    };
+
+	TargetedSwitchingEffect smartPlugDisableControlInstructionEffect2 = {
+        affectedParameter = smartPlugConfigurationParameter,
+        target = disabled
+    };
+
+    SimpleControlInstruction smartPlugDisableControlInstruction = {
+        // use default "index"-value for this simple instruction
+        effects = {
+            smartPlugDisableControlInstructionEffect1,
+            smartPlugDisableControlInstructionEffect2
+        },
+        command = "sp -ps=disable"
+    };
+
+    ControlDescription smartPlugDisableControlDescription = {
+        description = smartPlugDisableControlInstruction
+    };
+    // <<<<<<<<<<< Smart-Plug (Switch-Off) Control Definition <<<<<<<<<<<
+
+
+    // >>>>>>>>>>> Smart-Plug (Switch-On) Control Definition >>>>>>>>>>>>
+    RealParameter powerConsumption = {
+        name = "PowerConsumption",
+        value = 100
+    };
+
+    TargetedIncreasingEffect smartPlugEnableControlInstructionEffect1 = {
+        affectedParameter = smartPlugRuntimePowerConsumption,
+        target = powerConsumption,
+        tolerance = 100.0
+    };
+
+    BooleanParameter enabled = {
+        name = "Enabled",
+        value = true
+    };
+
+    TargetedSwitchingEffect smartPlugEnableControlInstructionEffect2 = {
+        affectedParameter = smartPlugConfigurationParameter,
+        target = enabled
+    };
+
+    SimpleControlInstruction smartPlugEnableControlInstruction = {
+        // use default "index"-value for this simple instruction
+        effects = {
+            smartPlugEnableControlInstructionEffect1,
+            smartPlugEnableControlInstructionEffect2
+        },
+        command = "sp -ps=enable"
+    };
+
+    ControlDescription smartPlugEnableControlDescription = {
+        description = smartPlugEnableControlInstruction
+    };
+    // <<<<<<<<<<< Smart-Plug (Switch-ON) Control Definition <<<<<<<<<<<<
+
+
+    // >>>>>>>>>>>>>>>>>>>>> Smart-Plug Definition >>>>>>>>>>>>>>>>>>>>>>
+    EntityDescription smartPlugDescription = {
+        smartPlugIdentificationDescription,
+        smartPlugSoftwareDescription,
+        smartPlugRuntimeDescription,
+        smartPlugConfigurationDescription,
+        smartPlugDisableControlDescription,
+        smartPlugEnableControlDescription
+    };
+
+    Entity smartPlug = {
+        name = "SmartPlug",
+        description = smartPlugDescription
+    };
+    // <<<<<<<<<<<<<<<<<<<<< Smart-Plug Definition <<<<<<<<<<<<<<<<<<<<<<
+}
