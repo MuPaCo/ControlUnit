@@ -544,6 +544,22 @@ public class Setup {
     }
     
     /**
+     * Returns a concatenation of the multi-line, textual representation provided by {@link #toLogLines()}.
+     * 
+     * @return a textual representation of this setup instance
+     */
+    @Override
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        String[] stringLines = toLogLines();
+        for (int i = 0; i < stringLines.length; i++) {
+            stringBuilder.append(stringLines[i]);
+            stringBuilder.append(";");
+        }
+        return stringBuilder.toString();
+    }
+    
+    /**
      * Returns a multi-line, textual representation of this setup instance for logging. Each element of the returned set
      * represents one property key with its associated value.
      * 
