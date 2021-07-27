@@ -75,13 +75,15 @@ public class Setup {
     
     /**
      * The key identifying the configuration property for defining the type of stream to use for logging standard
-     * information.
+     * information. The associated value to this key in this setup is either a valid user-defined stream or the
+     * {@link #LOGGING_DEFAULT_VALUE}.
      */
     public static final String KEY_LOGGING_STANDARD = KEY_LOGGING_PREFIX + "standard";
     
     /**
      * The key identifying the configuration property for defining the type of stream to use for logging debug
-     * information.
+     * information. The associated value to this key in this setup is either a valid user-defined stream or the
+     * {@link #LOGGING_DEFAULT_VALUE}.
      */
     public static final String KEY_LOGGING_DEBUG = KEY_LOGGING_PREFIX + "debug";
   
@@ -92,27 +94,44 @@ public class Setup {
     
     /**
      * The key identifying the configuration property for defining the type of protocol to use for listening for
-     * registrations of local elements to supervise by the controller.
+     * registrations of local elements to supervise by the controller. The associated value to this key in this setup is
+     * either a valid user-defined protocol or the {@link #REGISTRATION_DEFAULT_PROTOCOL}.
      */
     public static final String KEY_REGISTRATION_PROTOCOL = KEY_REGISTRATION_PREFIX + "protocol";
     
     /**
      * The key identifying the configuration property for defining the URL to use for establishing the network
-     * connection for registration of local elements.
+     * connection for registration of local elements. The associated value to this key in this setup is either a valid
+     * user-defined URL or the {@link #REGISTRATION_DEFAULT_URL}.
      */
     public static final String KEY_REGISTRATION_URL = KEY_REGISTRATION_PREFIX + "url";
     
     /**
      * The key identifying the configuration property for defining the port number to use for establishing the network
-     * connection for registration of local elements.
+     * connection for registration of local elements. The associated value to this key in this setup is either a valid
+     * user-defined port or the {@link #REGISTRATION_DEFAULT_PORT}.
      */
     public static final String KEY_REGISTRATION_PORT = KEY_REGISTRATION_PREFIX + "port";
     
     /**
      * The key identifying the configuration property for defining the channel name to use for establishing the network
-     * connection for registration of local elements.
+     * connection for registration of local elements. The associated value to this key in this setup is either a valid
+     * user-defined channel or the {@link #REGISTRATION_DEFAULT_CHANNEL}.
      */
     public static final String KEY_REGISTRATION_CHANNEL = KEY_REGISTRATION_PREFIX + "channel";
+    
+    /**
+     * The prefix of all keys identifying a configuration property related to registration capabilities. 
+     */
+    private static final String KEY_MODEL_PREFIX = "model.";
+    
+    /**
+     * The key identifying the configuration property for defining the fully-qualified path to the directory for saving
+     * models (IVML files) of registered local elements. The associated value to this key in this setup is either a
+     * valid user-defined path or the {@link #MODEL_DEFAULT_DIRECTORY}. The validation of this property by this setup
+     * guarantees that the directory always exists. 
+     */
+    public static final String KEY_MODEL_DIRECTORY = KEY_MODEL_PREFIX + "directory";
     
     // checkstyle: resume declaration order check (public before private; following order eases filtering properties)
     // [End]-------------------------------------------------------------------------------------------------------[End]
@@ -149,12 +168,18 @@ public class Setup {
      */
     private static final String REGISTRATION_DEFAULT_CHANNEL = "/registration";
     
+    /**
+     * The default value for the configuration properties identified by {@link #KEY_MODEL_DIRECTORY}.
+     */
+    private static final String MODEL_DEFAULT_DIRECTORY = "./models";
+    
     // [End]-------------------------------------------------------------------------------------------------------[End]
     // [End]                                   Constant Default Values Definition                                  [End]
     // [End]-------------------------------------------------------------------------------------------------------[End]
     
     private Properties loggingProperties;
     private Properties registrationProperties;
+    private Properties modelProperties;
     
     private List<String> postponedWarnings;
     
@@ -239,6 +264,7 @@ public class Setup {
         }
         loggingProperties = new Properties();
         registrationProperties = new Properties();
+        modelProperties = new Properties();
         Enumeration<Object> propertyKeys = loadedProperties.keys();
         String propertyKey;
         String propertyValue;
@@ -249,6 +275,8 @@ public class Setup {
                 loggingProperties.put(propertyKey, propertyValue);
             } else if (propertyKey.startsWith(KEY_REGISTRATION_PREFIX)) {
                 registrationProperties.put(propertyKey, propertyValue);
+            } else if (propertyKey.startsWith(KEY_MODEL_PREFIX)) {
+                modelProperties.put(propertyKey, propertyValue);
             } else {
                 // At this point, the property key has an unknown prefix; hence, it will be ignored
                 postponedWarnings.add("Ignoring unknown configuration property \"" + propertyKey + "\"");
@@ -258,10 +286,12 @@ public class Setup {
     
     /**
      * Calls the individual validation methods for checking whether the property values are valid. 
+     * @throws SetupException if a property value is invalid
      */
-    private void validateProperties() {
+    private void validateProperties() throws SetupException {
         validateLoggingProperties();
         validateRegistrationProperties();
+        validateModelProperties();
     }
     
     /**
@@ -347,6 +377,61 @@ public class Setup {
                 resetProperty(registrationProperties, key, defaultValue);
             }
             // TODO use regex or URI for more elaborated check
+            // TODO refine check: if protocol is MQTT, the channel does not need to start with "/"
+        }
+    }
+    
+    /**
+     * Validates the {@link #modelProperties} and their values.
+     * @throws SetupException if the mandatory model directory could not be created
+     */
+    private void validateModelProperties() throws SetupException {
+        // Validate model directory
+        String key = KEY_MODEL_DIRECTORY;
+        String value = getModelConfiguration(key);
+        String defaultValue = MODEL_DEFAULT_DIRECTORY;
+        if (handleUndefinedProperty(key, value, modelProperties, defaultValue)) {
+            // Default value was set for the model directory; use that directory or create it, if it is not available
+            value = getModelConfiguration(key);
+            try {
+                handleModelDirectory(value);
+            } catch (FileUtilitiesException e1) {
+                throw new SetupException("Could not create model directory \"" + value + "\"", e1);
+            }
+        } else {
+            /*
+             * User-defined path to the model directory; use that directory, create it, if it is not available, or use
+             * the default value (path), if creating the directory using the user-defined path fails.
+             */
+            try {
+                handleModelDirectory(value);
+            } catch (FileUtilitiesException e2) {
+                // Usage of user-defined path failed; use default value (path)
+                postponedWarnings.add("Value \"" + value + "\" not supported for model property \"" + key
+                        + "\": using default \"" + defaultValue + "\"");
+                resetProperty(modelProperties, key, defaultValue);
+                value = getModelConfiguration(key);
+                try {
+                    handleModelDirectory(value);
+                } catch (FileUtilitiesException e3) {
+                    throw new SetupException("Could not create model directory \"" + value + "\"", e3);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Checks whether the given path denotes an existing directory. If the path does not denote an existing file system
+     * element, this method tries to create a directory using the given path.
+     * 
+     * @param path the path to a directory to check for existence
+     * @throws FileUtilitiesException if the directory denoted by the given path does not exist and could not be created
+     */
+    private void handleModelDirectory(String path) throws FileUtilitiesException {
+        try {
+            FileUtilities.INSTANCE.getCheckedFileObject(path, true);
+        } catch (FileUtilitiesException e) {
+            FileUtilities.INSTANCE.createDirectory(path);
         }
     }
     
@@ -432,6 +517,17 @@ public class Setup {
     }
     
     /**
+     * Returns the setup value for the model configuration property identified by the given key.
+     * 
+     * @param key the key of the model configuration property for which the loaded setup value should be returned
+     * @return the respective setup value or <code>null</code>, if the given key is not present in the model property
+     *         set
+     */
+    public String getModelConfiguration(String key) {
+        return getConfiguration(modelProperties, key);
+    }
+    
+    /**
      * Returns the setup value for the configuration property in the given property set identified by the given key.
      *
      * @param properties the property set to search in for the given key
@@ -454,12 +550,13 @@ public class Setup {
      * @return a textual representation of this setup instance for logging
      */
     public String[] toLogLines() {
-        int logLinesLength = loggingProperties.size() + registrationProperties.size();
+        int logLinesLength = loggingProperties.size() + registrationProperties.size() + modelProperties.size();
         String[] logLines = new String[logLinesLength];
         
         int logLinesOffset = 0;
         logLinesOffset = addLogLines(logLines, logLinesOffset, loggingProperties);
-        addLogLines(logLines, logLinesOffset, registrationProperties);
+        logLinesOffset = addLogLines(logLines, logLinesOffset, registrationProperties);
+        addLogLines(logLines, logLinesOffset, modelProperties);
 
         return logLines;
     }
