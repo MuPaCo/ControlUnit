@@ -390,48 +390,69 @@ public class Setup {
         String key = KEY_MODEL_DIRECTORY;
         String value = getModelConfiguration(key);
         String defaultValue = MODEL_DEFAULT_DIRECTORY;
+        File modelDirectory;
         if (handleUndefinedProperty(key, value, modelProperties, defaultValue)) {
-            // Default value was set for the model directory; use that directory or create it, if it is not available
-            value = getModelConfiguration(key);
-            try {
-                handleModelDirectory(value);
-            } catch (FileUtilitiesException e1) {
-                throw new SetupException("Could not create model directory \"" + value + "\"", e1);
+            // Default value was set for the model directory; validate default directory
+            value = getModelConfiguration(key); // reassign the value after setting the default value
+            modelDirectory = new File(value);
+            try {                
+                validateDirectory(modelDirectory);
+            } catch (SetupException defaultDirectoryException) {
+                throw new SetupException("Default model directory unavailable", defaultDirectoryException);
             }
         } else {
-            /*
-             * User-defined path to the model directory; use that directory, create it, if it is not available, or use
-             * the default value (path), if creating the directory using the user-defined path fails.
-             */
-            try {
-                handleModelDirectory(value);
-            } catch (FileUtilitiesException e2) {
-                // Usage of user-defined path failed; use default value (path)
-                postponedWarnings.add("Value \"" + value + "\" not supported for model property \"" + key
+            // User-defined path to the model directory available; validate user-defined directory
+            modelDirectory = new File(value);
+            try {                
+                validateDirectory(modelDirectory);
+            } catch (SetupException userDirectoryException) {
+                // Using user-defined path failed; use default value and validate default directory
+                postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \"" + key
                         + "\": using default \"" + defaultValue + "\"");
                 resetProperty(modelProperties, key, defaultValue);
-                value = getModelConfiguration(key);
-                try {
-                    handleModelDirectory(value);
-                } catch (FileUtilitiesException e3) {
-                    throw new SetupException("Could not create model directory \"" + value + "\"", e3);
+                value = getModelConfiguration(key); // reassign the value after setting the default value
+                modelDirectory = new File(value);
+                try {                    
+                    validateDirectory(modelDirectory);
+                } catch (SetupException defaultDirectoryException) {
+                    throw new SetupException("Model directory unavailable", defaultDirectoryException);
                 }
             }
         }
     }
     
     /**
-     * Checks whether the given path denotes an existing directory. If the path does not denote an existing file system
-     * element, this method tries to create a directory using the given path.
+     * Checks whether the given file denotes a valid directory. If the given file does not exist, this method creates it
+     * temporarily to check whether it is a directory and deletes it again after this check.
      * 
-     * @param path the path to a directory to check for existence
-     * @throws FileUtilitiesException if the directory denoted by the given path does not exist and could not be created
+     * @param file the file to check for denoting a directory
+     * @throws SetupException if the given file does not denote a valid directory or either the temporal creation of the
+     *         file or its deletion fails
      */
-    private void handleModelDirectory(String path) throws FileUtilitiesException {
-        try {
-            FileUtilities.INSTANCE.getCheckedFileObject(path, true);
-        } catch (FileUtilitiesException e) {
-            FileUtilities.INSTANCE.createDirectory(path);
+    private void validateDirectory(File file) throws SetupException {
+        if (!file.exists()) {
+            try {
+                file = FileUtilities.INSTANCE.createDirectory(file.getAbsolutePath());
+            } catch (FileUtilitiesException e) {
+                /*
+                 * As the path used to create the file object above cannot be "null" nor empty and that file did not
+                 * exist before that call, the only reason for throwing an exception is that creating the file
+                 * failed. Hence, the default model directory is not available, which is a fundamental error.
+                 */
+                throw new SetupException("Creating directory \"" + file.getAbsolutePath() + "\" failed", e);
+            }
+            if (!file.isDirectory()) {
+                throw new SetupException("Path \"" + file.getAbsolutePath() + "\" does not denote a directory");
+            }
+            try {
+                FileUtilities.INSTANCE.delete(file);
+            } catch (FileUtilitiesException e) {
+                throw new SetupException("Deleting temporal directory \"" + file.getAbsolutePath() + "\" failed", e);
+            }
+        } else {
+            if (!file.isDirectory()) {
+                throw new SetupException("Path \"" + file.getAbsolutePath() + "\" does not denote a directory");
+            }
         }
     }
     
