@@ -422,11 +422,11 @@ public class Setup {
     }
     
     /**
-     * Checks whether the given file denotes a valid directory. If the given file does not exist, this method creates it
-     * temporarily to check whether it is a directory and deletes it again after this check.
+     * Checks whether the given file denotes a valid directory. If the given file does not exist, this method creates
+     * it for checking whether it is a valid directory. In case it is not, the created file will be deleted again.
      * 
      * @param file the file to check for denoting a directory
-     * @throws SetupException if the given file does not denote a valid directory or either the temporal creation of the
+     * @throws SetupException if the given file does not denote a valid directory or either the creation of the
      *         file or its deletion fails
      */
     private void validateDirectory(File file) throws SetupException {
@@ -442,12 +442,12 @@ public class Setup {
                 throw new SetupException("Creating directory \"" + file.getAbsolutePath() + "\" failed", e);
             }
             if (!file.isDirectory()) {
+                try {
+                    FileUtilities.INSTANCE.delete(file);
+                } catch (FileUtilitiesException e) {
+                    throw new SetupException("Deleting temporal file \"" + file.getAbsolutePath() + "\" failed", e);
+                }
                 throw new SetupException("Path \"" + file.getAbsolutePath() + "\" does not denote a directory");
-            }
-            try {
-                FileUtilities.INSTANCE.delete(file);
-            } catch (FileUtilitiesException e) {
-                throw new SetupException("Deleting temporal directory \"" + file.getAbsolutePath() + "\" failed", e);
             }
         } else {
             if (!file.isDirectory()) {

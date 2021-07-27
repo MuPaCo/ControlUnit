@@ -18,10 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+
+import net.ssehub.devopt.controllayer.utilities.FileUtilities;
+import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
 
 /**
  * This class contains unit tests for the creation of new {@link Setup} instances. In particular, these tests focus on
@@ -107,6 +111,11 @@ public class SetupCreationTests {
     private String actualCreationResult;
     
     /**
+     * The {@link Setup} instance used in the current test iteration.
+     */
+    private Setup setup;
+    
+    /**
      * Constructs a new {@link SetupCreationTests} instance for creating a setup instance based on the given parameter.
      * If creating the instance is successful, the information provided by {@link Setup#toString()} for this instance is
      * set as the {@link #actualCreationResult}. If creating the instance fails, the detail message string of the thrown
@@ -119,7 +128,7 @@ public class SetupCreationTests {
     public SetupCreationTests(String testConfigurationFilePath, String expectedCreationResult) {
         this.expectedCreationResult = expectedCreationResult;
         try {
-            Setup setup = new Setup(testConfigurationFilePath);
+            setup = new Setup(testConfigurationFilePath);
             actualCreationResult = setup.toString();
         } catch (SetupException e) {
             actualCreationResult = e.getMessage();
@@ -134,6 +143,28 @@ public class SetupCreationTests {
     @Parameters
     public static Object[][] getTestData() {
         return TEST_DATA;
+    }
+    
+    /**
+     * Deletes all artifacts (files, directories, etc.) created by the {@link Setup} instance used to execute the test
+     * cases in this class. This deletion is performed after each test method to ensure proper creation during the next
+     * test iteration.
+     */
+    @After
+    public void deleteSetupArtifacts() {
+        if (setup != null) {            
+            String modelDirectoryPath = setup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY);
+            if (modelDirectoryPath != null) {
+                File modelDirectory = new File(modelDirectoryPath);
+                try {
+                    System.out.println("Deleting test model directory \"" + modelDirectory.getAbsolutePath() + "\"");
+                    FileUtilities.INSTANCE.delete(modelDirectory);
+                } catch (FileUtilitiesException e) {
+                    System.out.println("Deleting test model directory failed; see trace below");
+                    e.printStackTrace();
+                }
+            }
+        }
     }
     
     /**
