@@ -37,6 +37,20 @@ public class SetupCreationTests {
     
     private static final String TEST_CONFIGURATION_FILES_DIRECTORY_PATH =
             AllTests.TEST_CONFIGURATION_FILES_DIRECTORY.getAbsolutePath() + File.separator;
+    
+    private static final String DEFAULT_SETUP_LOGGING_STRING = "logging.debug = s;logging.standard = s;";
+    
+    private static final String DEFAULT_SETUP_REGISTRATION_STRING = "registration.protocol = HTTP;"
+            + "registration.port = 80;registration.url = 127.0.0.1;registration.channel = /registration;";
+    
+    private static final String DEFAULT_SETUP_MODEL_STRING = "model.directory = ./models;";
+    
+    private static final String DEFAULT_SETUP_NO_MODEL_STRING = DEFAULT_SETUP_LOGGING_STRING
+            + DEFAULT_SETUP_REGISTRATION_STRING;
+    
+    private static final String DEFAULT_SETUP_STRING = DEFAULT_SETUP_LOGGING_STRING
+            + DEFAULT_SETUP_REGISTRATION_STRING
+            + DEFAULT_SETUP_MODEL_STRING;
 
     /**
      * The set of test value sets used to execute the tests in this class. Each subset is input to the constructor of
@@ -58,6 +72,10 @@ public class SetupCreationTests {
             {"  ", "Missing configuration file path"},
             {"notafilepath", "Invalid configuration file path: \"notafilepath\""},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "empty.cfg", "Loaded properties are empty"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_invalidDirectory.cfg", DEFAULT_SETUP_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_valid.cfg", DEFAULT_SETUP_NO_MODEL_STRING 
+                + "model.directory = ./testdata/model_db;"}
             /*
              * TODO: incomplete configuration properties, wrong combinations, values the fail validation, more than a
              *       single args element
