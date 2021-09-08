@@ -18,6 +18,8 @@ import java.io.OutputStream;
 
 import net.ssehub.devopt.controllayer.model.ModelException;
 import net.ssehub.devopt.controllayer.model.ModelManager;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 import net.ssehub.devopt.controllayer.utilities.Logger.LogLevel;
 import net.ssehub.devopt.controllayer.utilities.StringUtilities;
@@ -56,22 +58,20 @@ public class Controller {
             logger.logInfo(ID, "Execution aborted");
             System.exit(1);
         }
-        
         /*
-         * TODO this is a singleton. Hence, instance is created at startup, but the actual instantiation of the EASy-
-         * Producer components must be done here before any other components that rely on its capabilities.
-         * In particular, the setup must provide the model directory and (optionally) the .easy-producer startup file.
-         * 
-         * Setup details:
-         *    model.directory = DIR - where the save models received from local elements as part of the registration at
-         *                            the controller; default is a new folder called "models" next to the location of
-         *                            the controller bundle
-         *    easy.startup = FILE - where to find the easy-startup file defining which EASy-Producer components to load
-         *                          and how (see DevDoc of EASy); default is the internal file, which loads ...
-         *                          <describe components and style (DS here)>
+         * Next, start the EASy-Producer components before any other components, which may rely on the provided utility
+         * methods.
          */
-        setupEASyUtilities();
-        
+        try {
+            EASyUtilities.INSTANCE.startEASyComponents(setup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY));
+        } catch (EASyUtilitiesException e) {
+            logger.logException(ID, e);
+            System.exit(1);
+        }
+        /*
+         * Start the model management, which also creates the model receiver and any connections to the EASy-Producer
+         * components started above.
+         */
         try {
             modelManager = new ModelManager(setup);
             modelManager.run();
