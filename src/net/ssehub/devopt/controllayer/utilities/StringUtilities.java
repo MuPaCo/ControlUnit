@@ -92,6 +92,19 @@ public class StringUtilities {
     }
     
     /**
+     * Returns a new array of strings, which starts with the given new element followed by the given elements list in
+     * exactly its order.
+     * 
+     * @param newElement the new string to prepend to the given list
+     * @param elements the list of strings to prepend with the new element
+     * @return the given list of strings prepended by the given new element or <code>null</code>, if one of the given
+     *         parameters is <code>null</code>
+     */
+    public synchronized String[] prepend(String newElement, List<String> elements) {
+        return prepend(newElement, elements.toArray(new String[elements.size()]));
+    }
+    
+    /**
      * Returns a new array of strings, which starts with the given new element followed by the given elements array in
      * exactly their order.
      * 

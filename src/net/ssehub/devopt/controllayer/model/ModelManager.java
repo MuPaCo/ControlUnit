@@ -78,7 +78,7 @@ public class ModelManager implements ModelReceptionCallback {
 
     @Override
     public void modelReceived(String ivmlFileName, String ivmlProjectName) {
-        logger.logInfo(ID, "New IVML project \"" + ivmlProjectName + "\" available", "Source IVML file: \""
+        logger.logInfo(ID, "New IVML project \"" + ivmlProjectName + "\" received", "Source IVML file: \""
                 + ivmlFileName + "\"");
         ivmlProjectFileMap.put(ivmlProjectName, ivmlFileName);
         logMapping();
@@ -90,7 +90,7 @@ public class ModelManager implements ModelReceptionCallback {
     private void logMapping() {
         Set<String> mappingKeySet = ivmlProjectFileMap.keySet();
         String[] mappingLogLines = new String[mappingKeySet.size() + 1];
-        mappingLogLines[0] = "Available IVML project:";
+        mappingLogLines[0] = "Available IVML projects:";
         int mappingLogLinesCounter = 1;
         for (String mappingKey : mappingKeySet) {
             mappingLogLines[mappingLogLinesCounter] = mappingKey + "[" + ivmlProjectFileMap.get(mappingKey) + ".ivml]";

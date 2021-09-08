@@ -131,11 +131,11 @@ public class EASyUtilities {
             
             // Some debug logging information 
             logger.logDebug(ID, "EASy-Producer components started");
-            String loadedModels = StringUtilities.INSTANCE.toMultiLineString(getProjectNames());
-            if (loadedModels.isBlank()) {
+            List<String> loadedProjects = getProjectNames();
+            if (loadedProjects.size() == 0) {
                 logger.logDebug(ID, "Loaded models: <none>");
-            } else {                
-                logger.logDebug(ID, "Loaded models:", loadedModels);
+            } else {
+                logger.logDebug(ID, StringUtilities.INSTANCE.prepend("Loaded models:", loadedProjects));
             }
         }
     }
@@ -182,12 +182,23 @@ public class EASyUtilities {
             String projectName;
             for (int i = 0; i < modelFiles.length; i++) {
                 modelFile = modelFiles[i];
-                projectName = getProjectName(modelFile.toURI());
-                List<ModelInfo<Project>> models = varModel.availableModels().getModelInfo(projectName);
                 try {
-                    varModel.load(models.get(0));
-                } catch (ModelManagementException e) {
-                    throw new EASyUtilitiesException("Loading model file \"" + modelFile + "\" failed", e);
+                    // TODO should be more elegant to avoid "." within paths to match correct URI in varModel
+                    modelFile = new File(modelFile.getCanonicalPath());
+                    projectName = getProjectName(modelFile.toURI());
+                    if (projectName != null) {                    
+                        List<ModelInfo<Project>> models = varModel.availableModels().getModelInfo(projectName);
+                        if (models != null) {                        
+                            try {
+                                varModel.load(models.get(0));
+                            } catch (ModelManagementException e) {
+                                throw new EASyUtilitiesException("Loading model file \"" + modelFile + "\" failed", e);
+                            }
+                        }
+                    }
+                } catch (IOException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
                 }
             }
         }
@@ -301,9 +312,15 @@ public class EASyUtilities {
      */
     private String getProjectName(File modelDirectory, String modelFileName) {
         String projectName = null;
-        File modelFile = new File(modelDirectory, modelFileName);
-        URI modelFileUri = modelFile.toURI();
-        projectName = getProjectName(modelFileUri);
+        File modelFile;
+        try {
+            modelFile = new File(modelDirectory.getCanonicalPath(), modelFileName);
+            URI modelFileUri = modelFile.toURI();
+            projectName = getProjectName(modelFileUri);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         return projectName;
     }
     

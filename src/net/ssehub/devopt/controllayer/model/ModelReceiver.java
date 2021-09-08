@@ -265,7 +265,6 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
 
     @Override
     public HttpResponse requestArrived(HttpRequest request, NetworkException exception) {
-        logger.logDebug(ID, "New HTTP request arrived");
         HttpResponse response = null;
         if (request == null) {
             if (exception == null)  {
@@ -285,6 +284,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
             }
             // TODO add correct response headers
             response = new HttpResponse(null, responseCode, responseBody);
+            logger.logInfo(ID, "HTTP response", response.toString());
         }
         return response;
     }
