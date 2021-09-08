@@ -288,6 +288,16 @@ public class EASyUtilities {
     }
     
     /**
+     * TODO .
+     * @param ivmlProject TODO
+     * @return TODO
+     */
+    public synchronized boolean isValid(Project ivmlProject) {
+        // TODO implement validation using the reasoner
+        return false;
+    }
+    
+    /**
      * Returns the name of the IVML project defined in the file denoted by the given model file name. This file must be
      * available in the {@link #modelDirectory}.
      * 
