@@ -26,6 +26,7 @@ import net.ssehub.devopt.controllayer.network.HttpServerCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpServerUsageTests;
 import net.ssehub.devopt.controllayer.network.MqttV3ClientCreationTests;
 import net.ssehub.devopt.controllayer.network.MqttV3ClientUsageTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesTests;
 import net.ssehub.devopt.controllayer.utilities.LoggerTests;
 
 /**
@@ -38,6 +39,7 @@ import net.ssehub.devopt.controllayer.utilities.LoggerTests;
     SetupUsageTests.class,
     // Utilities tests
     LoggerTests.class,
+    EASyUtilitiesTests.class,
     // Network tests
     HttpClientCreationTests.class,
     HttpClientUsageTests.class,
