@@ -1,0 +1,25 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * information about the installed software of entities.
+ */
+project DevOpt_Software {
+
+    import DevOpt_Identification;
+    
+    // In general, elements in this project are bound at runtime.
+    annotate BindingTime bt = BindingTime.RUNTIME to DevOpt_Software;
+    
+    /*
+     * This type enables the definition of a software installed at its
+     * parent entity.
+     */
+    compound Software {
+        // The previously installed software version.
+        NonEmptyString previousVersion;
+        // The currently installed software version.
+        NonEmptyString currentVersion;
+        // The source of the currently installed software version.
+        Identification source;
+    }
+    
+}

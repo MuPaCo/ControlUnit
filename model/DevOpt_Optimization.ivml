@@ -1,0 +1,51 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * information about available optimization (functions).
+ */
+project DevOpt_Optimization {
+
+    import DevOpt_Control;
+    
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_Optimization;
+    
+    /*
+     * This type defines the abstract base optimization type from which
+     * the specific optimization types in this project are derived.
+     */
+    abstract compound Optimization {
+        /*
+         * In case of multiple optimizations, the value of this element
+         * defines the priority of optimizations to support the
+         * appropriate selection. The optimization with the highest
+         * priority will be selected. The default value is "0", which
+         * means that the optimization is always considered.
+         */
+        NaturalNumber priority = 0;
+        /*
+         * The control instruction to fire using the result of the 
+         * calculation of this optimization.
+         */
+        ControlInstruction controlInstruction;
+    }
+    
+    /*
+     * This type enables the definition of a single optimization
+     * (function).
+     */
+    compound SingleOptimization refines Optimization {
+        // The single-objective function.
+        Function optimizationFunction;
+    }
+    
+    /*
+     * This type enables the definition of a multi-optimization, which
+     * consists of a set of functions treated as multi-objective
+     * optimization.
+     */
+    compound MultiOptimization refines Optimization {
+        // The individual parts of this multi-objective optimization. 
+        setOf(Function) optimizationFunctions;
+    }
+    
+}

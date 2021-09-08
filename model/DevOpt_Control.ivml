@@ -1,0 +1,133 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * information about available control (instructions) for an entity.
+ */
+project DevOpt_Control {
+
+    import DevOpt_Runtime;
+    
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_Control;
+    
+    /*
+     * This type defines the abstract base control instruction type from
+     * which the specific control instruction types in this project are
+     * derived.
+     */
+    abstract compound ControlInstruction {
+        /*
+         * In case of multiple control instructions, which have to be
+         * fired in a particular sequence, the value of this element
+         * defines the position in that sequence. Control instructions in
+         * a sequence will be fired from the lowest to the highest index
+         * value. The default value is "0", which means that the control
+         * instruction can be fired without any previous actions.
+         */
+        NaturalNumber index = 0;
+        /*
+         * The (expected) effect(s) on the parent entity (runtime data,
+         * configuration, etc.), if this control instruction is fired.
+         */
+        setOf(InstructionEffect) effects;
+    }
+    
+    /*
+     * This type enables the definition of a single control instruction,
+     * which the parent entity offers to achieve a certain effect.
+     */
+    compound SimpleControlInstruction refines ControlInstruction {
+        // The entity-specific command of this control instruction.
+        NonEmptyString command;
+    }
+    
+    /*
+     * This type enables the definition of a sequence of control
+     * instructions, which can consist of simple control instructions and,
+     * again, complex control instructions.
+     */
+    compound ComplexControlInstruction refines ControlInstruction {
+        // The individual parts of this complex control instruction.
+        sequenceOf(ControlInstruction) instructionParts;
+    }
+
+    /*
+     * This type defines the abstract base instruction effect type from
+     * which the specific instruction effect types in this project are
+     * derived.
+     */
+    abstract compound InstructionEffect {
+        // The parameter affected by this effect.
+        Parameter affectedParameter;
+    }
+    
+    /*
+     * This type enables the definition of an increasing effect on certain
+     * parameters for a control instruction.
+     */
+    compound IncreasingEffect refines InstructionEffect {
+        // The symbolic representation of this effect.
+        const NonEmptyString symbol = ">";
+        // Only numerical parameters can be increased.
+        affectedParameter.isTypeOf(IntegerParameter) 
+                or affectedParameter.isTypeOf(RealParameter);
+    }
+    
+    /*
+     * This type enables the definition of an increasing effect to a 
+     * target value on certain parameters for a control instruction.
+     */
+    compound TargetedIncreasingEffect refines IncreasingEffect {
+        Parameter target;
+        // Target parameter type must be equal to affected parameter type
+        target.typeOf() == affectedParameter.typeOf();
+        // Optional tolerance regarding the target parameter value
+        Percentage tolerance;
+    }
+    
+    /*
+     * This type enables the definition of a decreasing effect on certain
+     * parameters for a control instruction.
+     */
+    compound DecreasingEffect refines InstructionEffect {
+        // The symbolic representation of this effect.
+        const NonEmptyString symbol = "<";
+        // Only numerical parameters can be decreased.
+        affectedParameter.isTypeOf(IntegerParameter) 
+                or affectedParameter.isTypeOf(RealParameter);
+    }
+    
+    /*
+     * This type enables the definition of a decreasing effect to a
+     * target value on certain parameters for a control instruction.
+     */
+    compound TargetedDecreasingEffect refines DecreasingEffect {
+        Parameter target;
+        // Target parameter type must be equal to affected parameter type
+        target.typeOf() == affectedParameter.typeOf();
+        // Optional tolerance regarding the target parameter value
+        Percentage tolerance;
+    }
+    
+    /*
+     * This type enables the definition of a switching effect on certain
+     * parameters for a control instruction.
+     */
+    compound SwitchingEffect refines InstructionEffect {
+        // The symbolic representation of this effect.
+        const NonEmptyString symbol = "~";
+        // Only boolean or string parameters can be switched.
+        affectedParameter.isTypeOf(BooleanParameter) 
+                or affectedParameter.isTypeOf(StringParameter);
+    }
+    
+    /*
+     * This type enables the definition of a switching effect to a
+     * target value on certain parameters for a control instruction.
+     */
+    compound TargetedSwitchingEffect refines SwitchingEffect {
+        Parameter target;
+        // Target parameter type must be equal to affected parameter type
+        target.typeOf() == affectedParameter.typeOf();
+    }
+    
+}

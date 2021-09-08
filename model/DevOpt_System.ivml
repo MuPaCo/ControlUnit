@@ -1,0 +1,52 @@
+/**
+ * This project defines the modeling elements for systems and their
+ * components as intended by the DevOpt approach.
+ */
+project DevOpt_System {
+
+    import DevOpt_Description;
+    
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_System;
+    
+    /*
+     * This type enables the definition of a single entity of a system,
+     * like single components of the local layer. 
+     */
+    compound Entity refines CoreElement {
+        // The (symbolic) name of this entity with a default value.
+        NonEmptyString name = "<unnamed>";
+        // The description of this entity.
+        EntityDescription description;
+        
+        /*
+         * TODO
+         * Ensure that control instructions are linked to runtime 
+         * parameters to define that a certain instruction influences
+         * a parameter (or at least should)
+         * Therefore we need those parameters as part of control
+         * instructions; the actual linkage can only be checked here, if
+         * both descriptions are available
+         * Example:
+         * 
+         * descriptions->collect(d|d.isTypeOf(RuntimeDate))
+        
+        descriptions->collect(d|d.isTypeOf(ControlInstruction))
+        Set of all control instructions
+        for each ci: get sequenceOf(InstructionEffect) effects;
+        for each ie: parameter must match Parameter value; of one of the RuntimeDates
+         */
+    }
+
+    /*
+     * This type enables the definition of a control node as a special
+     * type of entity logically located at the control layer. This type
+     * contains a set of entities it supervises and, hence, realizes a
+     * sub-structure of a system as intended by the DevOpt approach. 
+     */ 
+    compound ControlNode refines Entity {
+        // The entities this control node supervises.
+        setOf(Entity) entities;
+    }
+    
+}

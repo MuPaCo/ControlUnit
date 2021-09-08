@@ -1,0 +1,47 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * information about available analyses executable by entities.
+ */
+project DevOpt_Analysis {
+    
+    import DevOpt_Identification;
+    
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_Analysis;
+
+    /*
+     * This type defines the abstract base analysis type from which the
+     * specific analysis types in this project are derived.
+     */
+    abstract compound Analysis {
+        // The parameters input to an analysis
+        setOf(Parameter) input;
+        // The parameters holding the analysis result
+        setOf(Parameter) result;
+    }
+    
+    /*
+     * This type enables the definition of simple analyses, which consist 
+     * of an expression and, hence, are formulated via the build-in
+     * constraint system of this language.
+     * The actual analysis corresponds the constraint solving as part of
+     * the validation capabilities of the IVML language. 
+     */
+    compound ExpressionAnalysis refines Analysis {
+        Expression analysisExpression;
+    }
+    
+    /*
+     * This type enables the definition of complex analyses. Indeed, an
+     * (external) resource provides the actual analysis and, hence, will
+     * receive the input parameters. The output of that analysis will be
+     * translated into the output parameters. This parameter transfer is
+     * done by respective capabilities of the parent entity. 
+     * The actual analysis is up to the (external) resource identified by 
+     * the inherent identification description of this analysis type.
+     */
+    compound ExternalAnalysis refines Analysis {
+        Identification analyzer;
+    }
+
+}

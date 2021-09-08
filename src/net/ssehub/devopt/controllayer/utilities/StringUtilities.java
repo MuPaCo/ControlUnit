@@ -14,6 +14,8 @@
  */
 package net.ssehub.devopt.controllayer.utilities;
 
+import java.util.List;
+
 /**
  * This class provides thread-safe utility methods for {@link String} operations.
  * 
@@ -26,6 +28,11 @@ public class StringUtilities {
      * The singleton instance of this class.
      */
     public static final StringUtilities INSTANCE = new StringUtilities();
+    
+    /**
+     * The constant, system-dependent line separator.
+     */
+    private static final String LINE_SEPARATOR = System.lineSeparator();
     
     /**
      * Constructs a new {@link StringUtilities} instance.
@@ -103,6 +110,24 @@ public class StringUtilities {
             }
         }
         return prependedElements;
+    }
+    
+    /**
+     * Returns a single string in which each element of the given string list is separated by a {@link #LINE_SEPARATOR}.
+     * 
+     * @param stringList the list of strings to concatenate to a single string; must not be <code>null</code>
+     * @return the single string; may be <i>empty</i>, if the given list is empty.
+     */
+    public synchronized String toMultiLineString(List<String> stringList) {
+        StringBuilder multiLineStringBuilder = new StringBuilder();
+        if (stringList.size() > 0) {
+            multiLineStringBuilder.append(stringList.get(0));
+            for (int i = 1; i < stringList.size(); i++) {
+                multiLineStringBuilder.append(LINE_SEPARATOR);
+                multiLineStringBuilder.append(stringList.get(i));
+            }
+        }
+        return multiLineStringBuilder.toString();
     }
     
 }

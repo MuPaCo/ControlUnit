@@ -1,0 +1,109 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * descriptions of entities.
+ */
+project DevOpt_Description {
+    
+    import DevOpt_Software;
+    import DevOpt_Configuration;
+    import DevOpt_Optimization;
+    import DevOpt_Analysis;
+    
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_Description;
+    
+    /*
+     * This type defines the general entity description, which is a set of
+     * specific description types defines in this project.
+     * The additional constraint ensures that exactly one identification
+     * description for an entity exists.
+     */
+    typedef EntityDescription setOf(Description) with
+            ((EntityDescription->
+                collect(d|d.isTypeOf(IdentificationDescription))).size() == 1);
+
+    /*
+     * This type defines the abstract base description type from which the
+     * specific description types in this project are derived.
+     */
+    abstract compound Description refines CoreElement {
+        // Enable description hierarchies.
+        setOf(Description) descriptions;
+    }
+    
+    /*
+     * This type enables the definition of a generic description, which 
+     * supports the provision of entity-specific descriptions not cover by
+     * the other description types in this project.
+     */
+    compound GenericDescription refines Description {
+        // The identifier of this generic description.
+        NonEmptyString key;
+        // The actual content of this generic description.
+        Parameter description;
+    }
+    
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the identification of an entity. 
+     * See "DevOpt_Identification.ivml" for more information.
+     */
+    compound IdentificationDescription refines Description {
+        Identification description;
+    }
+    
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the installed software of an entity. 
+     * See "DevOpt_Software.ivml" for more information.
+     */
+    compound SoftwareDescription refines Description {
+        Software description;
+    }
+    
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the runtime data of an entity. 
+     * See "DevOpt_Runtime.ivml" for more information.
+     */
+    compound RuntimeDescription refines Description {
+        RuntimeDate description;
+    }
+    
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the configuration of an entity. 
+     * See "DevOpt_Configuration.ivml" for more information.
+     */
+    compound ConfigurationDescription refines Description {
+        Configuration description;
+    }
+    
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the control instructions of an entity. 
+     * See "DevOpt_Control.ivml" for more information.
+     */
+    compound ControlDescription refines Description {
+        ControlInstruction description;
+    }
+
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the analyses of an entity. 
+     * See "DevOpt_Analysis.ivml" for more information.
+     */    
+    compound AnalysisDescription refines Description {
+        Analysis description;
+    }
+    
+    /*
+     * This type enables the definition of a description, which provides
+     * information about the optimizations of an entity. 
+     * See "DevOpt_Optimization.ivml" for more information.
+     */ 
+    compound OptimizationDescription refines Description {
+        Optimization description;
+    }
+    
+}

@@ -1,0 +1,26 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * configurations for entities.
+ */
+project DevOpt_Configuration {
+
+    import DevOpt_Basics;
+    
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_Configuration;
+    
+    /*
+     * This type enables the definition of an entity configuration by
+     * providing the (set of) parameters and expressions, which restrict
+     * their combination and valid values.
+     */
+    compound Configuration {
+        setOf(Parameter) parameters;
+        // Ensure that at least one parameter is defined.
+        not parameters->isEmpty();
+        // Ensure that all parameter names are unique.
+        parameters->isUnique(p|p.name);
+        setOf(Expression) expressions; // TODO ensure that expressions only use existing parameters.
+    }
+    
+}

@@ -1,0 +1,37 @@
+/**
+ * This project defines modeling elements, which are used to define 
+ * information about available runtime data of an entity.
+ */
+project DevOpt_Runtime {
+
+    import DevOpt_Basics;
+    
+    // In general, elements in this project are bound at runtime.
+    annotate BindingTime bt = BindingTime.RUNTIME to DevOpt_Runtime;
+
+    /*
+     * This type enables the definition of runtime date, which is provided
+     * by the monitoring capabilities available at the parent entity.
+     */    
+    compound RuntimeDate {
+        NonEmptyString timestamp;
+        /*
+         * As the monitoring scope for a specific runtime date should not
+         * change, disable (re-)configuration at runtime.
+         */
+        assign (bt = BindingTime.COMPILE) to {
+            NonEmptyString monitoringScope;
+        }
+        Parameter value;
+        setOf(Expression) expressions; // TODO ensure that expressions only use the existing parameter.
+    }
+    
+    /*
+     * This type enables the definition of an entire state of the parent
+     * entity, which consists of a set of runtime dates.
+     */
+    compound State refines RuntimeDate {
+        setOf(RuntimeDate) values;
+    }
+    
+}

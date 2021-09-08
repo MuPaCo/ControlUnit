@@ -1,0 +1,226 @@
+/**
+ * This project defines basic modeling elements, which are used across the
+ * DevOpt modeling approach.
+ */
+project DevOpt_Basics {
+
+    /*
+     * This type enables the definition of binding times for other
+     * modeling elements.
+     */
+    enum BindingTime {COMPILE, RUNTIME};
+
+    // In general, elements in this project are bound at compile time.
+    annotate BindingTime bt = BindingTime.COMPILE to DevOpt_Basics;
+    
+    /*
+     * This type enables the definition of string variables, which always
+     * must be non-empty.
+     */
+    typedef NonEmptyString String with (NonEmptyString.size() > 0);
+    
+    /*
+     * This type enables the definition of a (potentially empty) set of
+     * non-empty keywords. For example, these keywords may be used to
+     * offer filtering of entities or properties in a dashboard.
+     */
+    typedef Keywords setOf(NonEmptyString);
+    
+    /*
+     * This type enables the definition of integer variables, which are
+     * always restricted to natural numbers including zero.
+     */
+    typedef NaturalNumber Integer with (NaturalNumber >= 0);
+    
+    /*
+     * This type enables the definition of percentages. The value of
+     * variables of this type are interpreted as exact percentages, like
+     * "Percentage p = 1.5" means "1.5%".
+     */
+    typedef Percentage Real;
+    
+    /*
+     * This type defines the common base type for the main DevOpt modeling
+     * elements, like entities and their descriptions.
+     */
+    abstract compound CoreElement {
+    	Keywords keywords;
+    }
+    
+    // >>>>>>>>>>>>>>>>>>>>>>>> Parameter Types >>>>>>>>>>>>>>>>>>>>>>>>
+    /*
+     * This type defines the abstract base parameter type from which the
+     * following specific parameter types are derived.
+     */
+    abstract compound Parameter {
+        NonEmptyString name;
+    }
+    
+    /*
+     * The following types define basic parameter types.
+     */
+    compound BooleanParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            Boolean value;
+        }
+    }
+    
+    compound IntegerParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            Integer value;
+        }
+    }
+    
+    compound RealParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            Real value;
+        }
+    }
+    
+    compound StringParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            String value;
+        }
+    }
+
+    /*
+     * The following types define sequences of basic parameter types.
+     * Sequences can contain an arbitrary number of elements of a single
+     * basic parameter type including duplicates.
+     */
+    compound BooleanSequenceParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            sequenceOf(Boolean) value;
+        }
+    }
+    
+    compound IntegerSequenceParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            sequenceOf(Integer) value;
+        }
+    }
+    
+    compound RealSequenceParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            sequenceOf(Real) value;
+        }
+    }
+    
+    compound StringSequenceParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            sequenceOf(String) value;
+        }
+    }
+    
+    /*
+     * The following types define sets of basic parameter types. Sets can
+     * contain an arbitrary number of elements of a single basic parameter
+     * type, but do not allow duplicates.
+     */
+    compound BooleanSetParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            setOf(Boolean) value;
+        }
+    }
+    
+    compound IntegerSetParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            setOf(Integer) value;
+        }
+    }
+    
+    compound RealSetParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            setOf(Real) value;
+        }
+    }
+    
+    compound StringSetParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            setOf(String) value;
+        }
+    }
+    
+    /*
+     * This type defines a composition parameter types. A composition can 
+     * contain an arbitrary number of arbitrary parameter types, but does
+     * not allow duplicates.
+     */
+    compound ComposedParameter refines Parameter {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            setOf(Parameter) value;
+        }
+    }
+    // <<<<<<<<<<<<<<<<<<<<<<<< Parameter Types <<<<<<<<<<<<<<<<<<<<<<<<
+    
+    // >>>>>>>>>>>>>>>>>>>>>>> Expression  Types >>>>>>>>>>>>>>>>>>>>>>>
+    /*
+     * This type defines the abstract base expression type from which the
+     * following specific expression types are derived.
+     */
+    abstract compound Expression {}
+    
+    /*
+     * This type enables the definition of time logic expressions.
+     */
+    compound TimeLogic refines Expression {
+        /*
+         * TODO Introduction of time logic expressions is future work.
+         * 
+         * The result of that work will introduce the actual content of
+         * this type, like:
+         * 
+         * // Enable (re-)configuration at runtime.
+         * assign (bt = BindingTime.RUNTIME) to {
+         *     Timing expression;
+         * } 
+         */
+    }
+    
+    /*
+     * This type enables the definition of restriction expressions.
+     * Restrictions contrain (the combination of) parameter values and
+     * runtime data.
+     */
+    compound Restriction refines Expression {
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            Constraint expression;
+        }
+    }
+    
+    /*
+     * This type defines the supported types of optimizations for a(n)
+     * (optimization) function.
+     */
+    enum Optimization {MINIMIZE, MAXIMIZE};
+    
+    /*
+     * This type enables the definition of (optimization) functions.
+     * These functions define how to evaluate (minimize or maximize) a
+     * given target considering given side constraints.
+     */
+    compound Function refines Expression {
+        Optimization optimization;
+        // Enable (re-)configuration at runtime.
+        assign (bt = BindingTime.RUNTIME) to {
+            Constraint target;
+            setOf(Constraint) sideConstraints;
+        }
+    }
+    // <<<<<<<<<<<<<<<<<<<<<<< Expression  Types <<<<<<<<<<<<<<<<<<<<<<<
+    
+}
