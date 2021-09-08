@@ -273,11 +273,26 @@ public class EASyUtilities {
     }
     
     /**
+     * Returns the name of the IVML project defined in the file denoted by the given model file name. This file must be
+     * available in the {@link #modelDirectory}.
+     * 
+     * @param modelFileName the name of the model file for which the name of the defined project shall be returned; this
+     *        name must <b>not</b> include the <code>.ivml</code>-extension as it will be added automatically by this
+     *        method
+     * @return the name of the IVML project or <code>null</code>, if no project for the given model file is known
+     */
+    public String getProjectName(String modelFileName) {
+        modelFileName = modelFileName + ".ivml";
+        return getProjectName(modelDirectory, modelFileName);
+    }
+    
+    /**
      * Returns the name of the IVML project defined in the file denoted by the given model file name and located in the
      * given model directory.
      * 
      * @param modelDirectory the {@link File} denoting the directory in which the model file is located
-     * @param modelFileName the name of the model file for which the name of the defined project shall be returned
+     * @param modelFileName the name of the model file for which the name of the defined project shall be returned; this
+     *        name must include the <code>.ivml</code>-extension
      * @return the name of the IVML project or <code>null</code>, if no project for the given model file is known
      */
     private String getProjectName(File modelDirectory, String modelFileName) {

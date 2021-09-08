@@ -24,10 +24,20 @@ import net.ssehub.devopt.controllayer.network.HttpResponse;
 import net.ssehub.devopt.controllayer.network.HttpServer;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
- * TODO .
+ * This class realizes a receiver for incoming registration request. Hence, it creates a network connection based on the
+ * given constructor parameters. Each message received via this connection is interpreted as a valid IVML model, which
+ * is defined by using the DevOpt meta model. An instance of this class adds this instance to the {@link EASyUtilities}
+ * and, if this addition is successful, replies without any content to signal that there were no errors and the
+ * registration was successful.
+ * 
+ * Instances of this class always are under control of the {@link ModelManager}. Typically, there is only a single
+ * instance, which calls the manager back, if the addition of a new model was successful. 
+ * 
  * @author kroeher
  *
  */
@@ -37,33 +47,38 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
      * The identifier of this class, e.g., for logging messages during instance creation. 
      */
     private static final String ID = ModelReceiver.class.getSimpleName();
-
-    /*
-     * Steht unter der Kontrolle des ModelManagers, den es noch nicht gibt.
-     * 
-     * Erstellt die entsprechende Netzwerkverbindung, auf der für mögliche Registrierungen gelauscht wird:
-     *  HTTP oder MQTT (oder beides?)
-     *  
-     * 
-     *  
-     *  Es gibt nur eine ModelReceiver-Instanz für den Manager
-     *  ModelReceiver selbst kein eigener Thread, kann aber durch Manager in separaten Thread ausgeführt werden?!
-     *  Dazu:
-     *      ModelManager kennt ModelReceiver (erstellt diesen auch) und bekommt geparstes Modell zur Ablage
-     *      Wichtig: ModelManager arbeitet parallel als Versorger bzgl. Modellinformationen an andere Komponenten und
-     *               Verwaltung neuer Modelle, die vom Empfänger kommen
-     *  
-     */
     
+    /**
+     * The local reference to the global {@link Logger}.
+     */
     private Logger logger = Logger.INSTANCE;
     
+    /**
+     * The instance to inform about a successful addition of a new IVML model (successful registration).
+     */
     private ModelReceptionCallback callback;
     
+    /**
+     * The MQTT topic to subscribe to or the HTTP server context to create for incoming registration requests.
+     */
     private String receptionChannel;
     
+    /**
+     * The {@link MqttV3Client} instance to use for receiving incoming registration requests. May be <code>null</code>,
+     * if HTTP is used as reception channel, see {@link #createReceiver(String, String, int, String, String)}.
+     */
     private MqttV3Client mqttClient;
     
+    /**
+     * The {@link HttpServer} instance to use for receiving incoming registration requests. May be <code>null</code>,
+     * if MQTT is used as reception channel, see {@link #createReceiver(String, String, int, String, String)}.
+     */
     private HttpServer httpServer;
+    
+    /**
+     * The local reference to the global {@link EASyUtilities}.
+     */
+    private EASyUtilities easyUtilities = EASyUtilities.INSTANCE;
     
     /**
      * Constructs a new {@link ModelReceiver} instance for receiving models of local elements as a registration for
@@ -178,24 +193,34 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         }
     }
     
-    // Return null if everything is ok!
+    /**
+     * Adds the given message as an IVML model to the {@link #easyUtilities} and calls the {@link #callback} passing the
+     * created IVML model file name as well as the name of the loaded IVML project based on the model definitions.
+     * 
+     * @param receivedMessage the message received from an external element for registration at this control node; it is
+     *        assumed that this message contains a valid IVML model based on the DevOpt meta model
+     * @return <code>null</code>, if the IVML model in the given message is successfully added (registration
+     *         successful), or an error message describing the problem with the given message (registration failed)
+     */
     private String processRegistration(String receivedMessage) {
         String response = null;
         if (receivedMessage == null || receivedMessage.isBlank()) {
             response = "Received message is empty";
         } else {
-            /*
-             * Workflow:
-             *  1. Registration-Anfrage wird empfangen
-             *  2. Body/Message wird an EASy/IVML zum parsen übergeben
-             *  3a. Parsen schlägt fehl -> Response = Entsprechende Fehlermdeldung "Parsing failed"
-             *  3b. Parsen erfolgreich, dann weiter mit 4.
-             *  4. Geparstes Modell in DB oder sowas ablegen: entweder neu hinzufügen oder altes überschreiben
-             *  5a. Ablage schlägt fehl -> Response = Entsprechende Fehlermdeldung "Ablage failed (warum?)"
-             *  5b. Ablage erfolgreich -> Response = null
-             */
-            
-            callback.modelReceived(receivedMessage); // TODO add parsed model as parameter
+            String modelFileName = "" + System.currentTimeMillis();
+            try {
+                easyUtilities.addModel(receivedMessage, modelFileName);
+                String projectName = easyUtilities.getProjectName(modelFileName);
+                if (projectName != null) {                    
+                    callback.modelReceived(modelFileName, projectName);
+                } else {
+                    response = "Loading IVML project failed";
+                    logger.logError(ID, response, "IVML model file: \"" + modelFileName + "\"");
+                }
+            } catch (EASyUtilitiesException e) {
+                response = e.getMessage();
+                logger.logException(ID, e);
+            }
         }
         return response;
     }
@@ -219,6 +244,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
+        logger.logDebug(ID, "New MQTT message arrived");
         if (message != null) {
             byte[] payload = message.getPayload();
             if (payload != null) {
@@ -227,7 +253,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
                  * registration was not successful) depending on the result of processing the registration.
                  * However, it is unclear how such a reply should be delivered: again via an additional
                  * MQTT client for publishing (which would mean that the sender waits for that reply and disconnects
-                 * later and we need another clent for publishing) or via HTTP, but thats a completely different
+                 * later and we need another client for publishing) or via HTTP, but thats a completely different
                  * protocol
                  * 
                  * For now there is no reply
@@ -239,6 +265,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
 
     @Override
     public HttpResponse requestArrived(HttpRequest request, NetworkException exception) {
+        logger.logDebug(ID, "New HTTP request arrived");
         HttpResponse response = null;
         if (request == null) {
             if (exception == null)  {
