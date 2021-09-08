@@ -132,7 +132,11 @@ public class EASyUtilities {
             // Some debug logging information 
             logger.logDebug(ID, "EASy-Producer components started");
             String loadedModels = StringUtilities.INSTANCE.toMultiLineString(getProjectNames());
-            logger.logDebug(ID, "Loaded models:", loadedModels);
+            if (loadedModels.isBlank()) {
+                logger.logDebug(ID, "Loaded models: <none>");
+            } else {                
+                logger.logDebug(ID, "Loaded models:", loadedModels);
+            }
         }
     }
     
