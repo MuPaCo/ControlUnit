@@ -30,6 +30,29 @@ import net.ssehub.easy.basics.progress.ProgressObserver;
 import net.ssehub.easy.varModel.management.VarModel;
 import net.ssehub.easy.varModel.model.Project;
 
+/*
+ * TODO Loading internal files must be re-implemented
+ * 
+ * As it is, the EASyUtilties loads the EASy components based on the .easy-producer file and the DevOpt meta-model as a
+ * prerequisite to resolve imports of received models of the local elements.
+ * 
+ * However, this does not work in an executable jar-File, because then we cannot use File-objects, but need to load
+ * these jar-internal resources. In turn, this breaks the current implementation:
+ * 
+ * - For the .easy-producer file: it must be a File-object due to the ListLoader(EASY_STARTUP_FILE) in
+ *   startEASyComponents
+ * - For the meta-model: there is currently the assumption that these files are loaded prior to any received external
+ *   models, which is not completely correct. Loading the meta-model and loading additional models must be decoupled
+ *   completely to use the internal model directory for the meta-model once, and the externally defined directory for
+ *   received models independently. However, for the latter again resources instead of files must be used, which is
+ *   questionable with respect to the EASy components.
+ *   
+ * For now, we package the executable jar with all files and directory necessary for its proper execution. Hence, the
+ * configuration option for the model directory must always be the directory in that package. Changing that path must
+ * include copying the meta-model files to that directory as well.
+ * 
+ */
+
 /**
  * This class provides thread-safe access to the standalone version of EASy-Producer. In particular, the methods of this
  * class provide access to the modeling and reasoning capabilities of EASy-Producer as well as additional utilities to
