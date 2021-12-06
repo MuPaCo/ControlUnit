@@ -71,9 +71,9 @@ public class SetupCreationTests {
      * </ul>
      */
     private static final Object[][] TEST_DATA = {
-            {null, "Missing configuration file path"},
-            {"", "Missing configuration file path"},
-            {"  ", "Missing configuration file path"},
+            {null, DEFAULT_SETUP_STRING},
+            {"", DEFAULT_SETUP_STRING},
+            {"  ", DEFAULT_SETUP_STRING},
             {"notafilepath", "Invalid configuration file path: \"notafilepath\""},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "empty.cfg", "Loaded properties are empty"},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},

@@ -56,7 +56,8 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  * This class realizes the internal setup of this tool in terms of configuration properties and their current values. It
  * determines the configuration file defined by the supplied command-line arguments, sets the user-defined property
  * values based on the configuration file content, validates these values, and provides them for other components of the
- * tool.
+ * tool. If no configuration file is given or user-defined property values are not supported, the setup automatically
+ * uses its default values for the respective properties.
  * 
  * @author kroeher
  *
@@ -188,14 +189,24 @@ public class Setup {
      * components of this tool.
      * 
      * @param configurationFilePath the path to the configuration file containing the configuration properties for this
-     *        setup instance
+     *        setup instance; may be <code>null</code> to force using the default property values
      * @throws SetupException if determining the configuration file, setting the configuration properties, or validating
      *         their values fails
      */
     public Setup(String configurationFilePath) throws SetupException {
+        loggingProperties = new Properties();
+        registrationProperties = new Properties();
+        modelProperties = new Properties();
         postponedWarnings = new ArrayList<String>();
         File configurationFile = getConfigurationFile(configurationFilePath);
-        setProperties(configurationFile);
+        if (configurationFile != null) {
+            setProperties(configurationFile);
+        }
+        /*
+         * Validation sets default property values either, if property values of the given configuration file are not
+         * supported, or, if no property value is set. Hence, validation automatically ensures default property values
+         * also, if no configuration file is available and setting the properties was not called above.
+         */
         validateProperties();
     }
     
@@ -203,19 +214,19 @@ public class Setup {
      * Returns the configuration file denoted by the given configuration file path.
      * 
      * @param configurationFilePath the path to the configuration file containing the configuration properties
-     * @return the configuration file to use for building a setup instance
-     * @throws SetupException if the given configuration file path is <code>null</code> or blank, or the path causes the
-     *         configuration file creation to fail
+     * @return the configuration file to use for building a setup instance or <code>null</code>, if the given
+     *         configuration file path is <code>null</code> or <i>blank</i>
+     * @throws SetupException if the given configuration file path neither <code>null</code> nor blank, but the path
+     *         causes the configuration file creation to fail
      */
     private File getConfigurationFile(String configurationFilePath) throws SetupException {
         File configurationFile = null;
-        if (configurationFilePath == null || configurationFilePath.isBlank()) {
-            throw new SetupException("Missing configuration file path");
-        }
-        try {
-            configurationFile = FileUtilities.INSTANCE.getCheckedFileObject(configurationFilePath, false);
-        } catch (FileUtilitiesException e) {
-            throw new SetupException("Invalid configuration file path: \"" + configurationFilePath + "\"", e);
+        if (configurationFilePath != null && !configurationFilePath.isBlank()) {
+            try {
+                configurationFile = FileUtilities.INSTANCE.getCheckedFileObject(configurationFilePath, false);
+            } catch (FileUtilitiesException e) {
+                throw new SetupException("Invalid configuration file path: \"" + configurationFilePath + "\"", e);
+            }
         }
         return configurationFile;
     }
@@ -262,9 +273,6 @@ public class Setup {
         if (loadedProperties.isEmpty()) {
             throw new SetupException("Loaded properties are empty");
         }
-        loggingProperties = new Properties();
-        registrationProperties = new Properties();
-        modelProperties = new Properties();
         Enumeration<Object> propertyKeys = loadedProperties.keys();
         String propertyKey;
         String propertyValue;

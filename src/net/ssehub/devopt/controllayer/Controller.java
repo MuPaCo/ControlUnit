@@ -83,34 +83,34 @@ public class Controller {
     
     /**
      * Returns a new {@link Setup} instance, which loaded the configuration properties of the file denoted by the file
-     * path at index 0 of the given command-line arguments.<br>
+     * path at index 0 of the given command-line arguments. If this argument is not available, the instance will be
+     * created using the default property values as defined by the {@link Setup} class.<br>
      * This method also calls {@link #setupLogger(Setup)} to immediately enable the usage of the global {@link Logger},
      * if creating the setup instance was successful.
      *  
      * @param args the command-line arguments as supplied to {@link #main(String[])}
-     * @return the setup instance of this controller or <code>null</code>, if the command-line arguments are empty or
-     *         creating the setup instance fails
+     * @return the setup instance of this controller or <code>null</code>, if creating the setup instance fails
      */
     private Setup loadSetup(String[] args) {
-        Setup setup = null;
+        Setup setup = null;        
+        String configurationFilePath = null;
         try {
+            if (args.length > 0) {
+                configurationFilePath = args[0];
+            }
             // Do not reorder as the logger must be configured before any messages are logged
-            setup = new Setup(args[0]);
+            setup = new Setup(configurationFilePath);
             setupLogger(setup);
-            logger.logInfo(ID, "Loading configuration:", "Configurtion file \"" + args[0] + "\"");
+            if (configurationFilePath != null) {                
+                logger.logInfo(ID, "Loading configuration:", "Configuration file \"" + configurationFilePath + "\"");
+            } else {
+                logger.logInfo(ID, "Loading configuration:", "No configuration file defined");
+            }
             logger.logInfo(ID, StringUtilities.INSTANCE.prepend("Configuration loaded:", setup.toLogLines()));
             if (setup.hasPostponedWarnings()) {                
                 logger.logWarning(ID,
                         StringUtilities.INSTANCE.prepend("Setup warnings:", setup.getPostponedWarnings()));
             }
-        } catch (ArrayIndexOutOfBoundsException e) {
-            /*
-             * Use System.out as fall-back output streams, if there are no command-line arguments and, hence, no
-             * configuration file path for creating the setup.
-             */
-            logger.addOutputStream(System.out, LogLevel.STANDARD);
-            logger.addOutputStream(System.out, LogLevel.DEBUG);
-            logger.logError(ID, "Missing configuration file path");
         } catch (SetupException e) {
             /*
              * Use System.out as fall-back output streams, if creating the setup, which typically provides the desired
@@ -118,7 +118,7 @@ public class Controller {
              */
             logger.addOutputStream(System.out, LogLevel.STANDARD);
             logger.addOutputStream(System.out, LogLevel.DEBUG);
-            logger.logInfo(ID, "Loading configuration:", "Configurtion file \"" + args[0] + "\"");
+            logger.logInfo(ID, "Loading configuration:", "Configurtion file \"" + configurationFilePath + "\"");
             logger.logException(ID, e);
         }
         return setup;
