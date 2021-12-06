@@ -42,7 +42,7 @@ public class SetupCreationTests {
     private static final String TEST_CONFIGURATION_FILES_DIRECTORY_PATH =
             AllTests.TEST_CONFIGURATION_FILES_DIRECTORY.getAbsolutePath() + File.separator;
     
-    private static final String DEFAULT_SETUP_LOGGING_STRING = "logging.debug = s;logging.standard = s;";
+    private static final String DEFAULT_SETUP_LOGGING_STRING = "logging.debug = n;logging.standard = s;";
     
     private static final String DEFAULT_SETUP_REGISTRATION_STRING = "registration.protocol = HTTP;"
             + "registration.port = 80;registration.url = 127.0.0.1;registration.channel = /registration;";

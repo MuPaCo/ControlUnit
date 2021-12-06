@@ -144,10 +144,14 @@ public class Setup {
     // [Start]---------------------------------------------------------------------------------------------------[Start]
     
     /**
-     * The default value for the configuration properties identified by {@link #KEY_LOGGING_STANDARD} and
-     * {@link #KEY_LOGGING_DEBUG}.
+     * The default value for the configuration property identified by {@link #KEY_LOGGING_STANDARD}.
      */
-    private static final String LOGGING_DEFAULT_VALUE = "s";
+    private static final String LOGGING_STANDARD_DEFAULT_VALUE = "s";
+    
+    /**
+     * The default value for the configuration property identified by {@link #KEY_LOGGING_DEBUG}.
+     */
+    private static final String LOGGING_DEBUG_DEFAULT_VALUE = "n";
     
     /**
      * The default value for the configuration properties identified by {@link #KEY_REGISTRATION_PROTOCOL}.
@@ -306,8 +310,10 @@ public class Setup {
      * Validates the {@link #loggingProperties} and their values.
      */
     private void validateLoggingProperties() {
-        validateLoggingProperty(KEY_LOGGING_STANDARD, getLoggingConfiguration(KEY_LOGGING_STANDARD));
-        validateLoggingProperty(KEY_LOGGING_DEBUG, getLoggingConfiguration(KEY_LOGGING_DEBUG));
+        validateLoggingProperty(KEY_LOGGING_STANDARD, getLoggingConfiguration(KEY_LOGGING_STANDARD),
+                LOGGING_STANDARD_DEFAULT_VALUE);
+        validateLoggingProperty(KEY_LOGGING_DEBUG, getLoggingConfiguration(KEY_LOGGING_DEBUG),
+                LOGGING_DEBUG_DEFAULT_VALUE);
     }
     
     /**
@@ -315,15 +321,16 @@ public class Setup {
      * 
      * @param key the key of the logging property to validate
      * @param value the value associated with the given key
+     * @param defaultValue the default value for the property identified by the given key
      */
-    private void validateLoggingProperty(String key, String value) {
-        if (!handleUndefinedProperty(key, value, loggingProperties, LOGGING_DEFAULT_VALUE)) {
+    private void validateLoggingProperty(String key, String value, String defaultValue) {
+        if (!handleUndefinedProperty(key, value, loggingProperties, defaultValue)) {
             // Check if specified logging configuration is supported by setup/logger
-            if (!value.equalsIgnoreCase("s")) {                
+            if (!value.equalsIgnoreCase("s") && !value.equalsIgnoreCase("n")) {                
                 // More options will follow in future
                 postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \"" + key
-                        + "\": using default \"" + LOGGING_DEFAULT_VALUE + "\"");
-                resetProperty(loggingProperties, key, LOGGING_DEFAULT_VALUE);
+                        + "\": using default \"" + defaultValue + "\"");
+                resetProperty(loggingProperties, key, defaultValue);
             }
         }
     }
