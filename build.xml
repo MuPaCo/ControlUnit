@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ant script for building a exectuable Jar-archive available as (intermediate) release -->
+<project name="Control-Layer" default="release" basedir=".">
+    
+    <!-- Project-sepcific directories and files -->
+    <property name="src.dir" location="src"/>
+	<property name="libs.dir" location="libs"/>
+	<property name="ivml.dir" location="model"/>
+    
+    <!-- Build-specific directories and files -->
+    <property name="build.dir" location="build"/>
+	<property name="executable.dir" location="executable"/>
+	<property name="models.dirname" value="models"/>
+	<property name="models.dir" location="${models.dirname}"/>
+    <property name="release.dir" location ="releases"/>
+    <property name="executable.filename" value="control-node.jar"/>
+	<property name="release.filename" value="DevOpt-ControlNode.zip"/>
+    
+    <!-- Delete build and executable directory -->
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+    	<delete dir="${executable.dir}"/>
+    	<delete dir="${models.dir}"/>
+    </target>
+        
+    <!-- Create build and exectuable directory -->
+    <target name="makedirs">
+        <mkdir dir="${build.dir}"/>
+    	<mkdir dir="${executable.dir}"/>
+    	<mkdir dir="${models.dir}"/>
+    </target>
+    
+    <!-- Compile Java sources to build directory -->
+    <target name="compile" depends="makedirs">
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false">
+            <classpath>
+                <fileset dir="${libs.dir}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+        </javac>
+    </target>
+    
+    <!-- Package compiled Java sources as executable Jar-archive to executable directory-->
+    <target name="jar" depends="compile">
+        <jar destfile="${executable.dir}\${executable.filename}" basedir="${build.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="net.ssehub.devopt.controllayer.Controller"/>
+            </manifest>
+        </jar>
+    </target>
+	
+	<!-- Archive executable Jar-archive and additionally required elements as Zip-archive to release directory -->
+	<target name="zip" depends="jar">
+		<!-- Intermediate copy of *.ivml files to match directory name "models" in final Zip-archive -->
+		<copy todir="${models.dir}">
+			<fileset dir="${ivml.dir}" includes="*.ivml"/>
+		</copy>
+		<zip destfile="${release.dir}/${release.filename}">
+			<fileset dir="${executable.dir}" includes="*.jar"/>
+			<fileset dir="testdata/setup" includes="description.cfg"/>
+			<fileset dir="" includes="${models.dirname}/*.ivml"/>
+			<fileset dir="" includes=".easy-producer"/>
+        </zip>
+	</target>
+    
+    <!-- Main (start) target -->
+    <target name ="release" depends="zip, clean">
+        <description>Create (intermediate) control node release</description>
+    </target>
+    
+</project>
