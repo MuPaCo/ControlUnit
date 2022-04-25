@@ -18,10 +18,12 @@ import java.util.HashMap;
 import java.util.Set;
 
 import net.ssehub.devopt.controllayer.Setup;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiver;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
  * This class realizes an IVML model management.
+ * TODO make this class a singleton as there can only be a single instance that manages all models consistently.
  * 
  * @author kroeher
  *
@@ -81,11 +83,28 @@ public class ModelManager implements ModelReceptionCallback {
         logger.logInfo(ID, "New IVML project \"" + ivmlProjectName + "\" received", "Source IVML file: \""
                 + ivmlFileName + "\"");
         ivmlProjectFileMap.put(ivmlProjectName, ivmlFileName);
-        logMapping();
+        logMapping(); // TODO for now ok, but later make that debug information
+        establishMonitoring(ivmlFileName, ivmlProjectName); // TODO further block of model receiver; is that safe?
+    }
+    
+    // TODO write correct JavaDoc
+    private void establishMonitoring(String ivmlFileName, String ivmlProjektName) {
+        /*
+         * TODO
+         * 1. Get the information from the model about how to monitor the component:
+         *      1.1 Define at least one example of such information using the DevOpt meta model
+         *      1.2 Implement necessary auxiliary methods to access such information from any model
+         * 2. Create an ObservableInfo instance based in that monitoring information
+         * 3. Get the singleton instance of the MonitoringDataReceiver and calls addObservable with the new
+         *    ObservableInfo
+         * 4. If adding the new observable fails (addObservable returns false), print a corresponding error
+         *    (and remove the entire model from this manager again as we cannot monitor the component anyway?)  
+         */
+        MonitoringDataReceiver.INSTANCE.addObservable(null); // replace null by ObservableInfo created at step 2 above
     }
     
     /**
-     * Logs the current entries in the {@link #ivmlProjectFileMap} via the {@link #logger} as generla information.
+     * Logs the current entries in the {@link #ivmlProjectFileMap} via the {@link #logger} as general information.
      */
     private void logMapping() {
         Set<String> mappingKeySet = ivmlProjectFileMap.keySet();
