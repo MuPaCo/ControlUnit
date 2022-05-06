@@ -1,5 +1,4 @@
-/*
- * Copyright 2021 University of Hildesheim, Software Systems Engineering
+ /* Copyright 2021 University of Hildesheim, Software Systems Engineering
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
  * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
@@ -109,6 +108,10 @@ public class MqttV3Client extends AbstractNetworkClient {
         
         connectionOptions = new MqttConnectOptions();
         connectionOptions.setCleanSession(true); // default value; maybe configurable via constructor in future
+        // This default re-connection behavior from the paho mqtt client package
+        // setAutomaticReconnect re-connects to the client after every 2 seconds and increases 
+        // the delay to 2 minutes by an increment of 1 second and keeps re-connecting in intervals
+        connectionOptions.setAutomaticReconnect(true); 
         if (getUsername() != null) {
             connectionOptions.setUserName(getUsername());
         }
@@ -211,7 +214,7 @@ public class MqttV3Client extends AbstractNetworkClient {
      * @throws NetworkException if connecting this client fails
      * @see #isConnected()
      */
-    private void connect() throws NetworkException {
+    public void connect() throws NetworkException { //Can we make this protected void connect()
         if (!isConnected()) {
             try {
                 client.connect(connectionOptions);
