@@ -1,4 +1,5 @@
- /* Copyright 2021 University of Hildesheim, Software Systems Engineering
+/*
+ * Copyright 2021 University of Hildesheim, Software Systems Engineering
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
  * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
@@ -214,7 +215,7 @@ public class MqttV3Client extends AbstractNetworkClient {
      * @throws NetworkException if connecting this client fails
      * @see #isConnected()
      */
-    public void connect() throws NetworkException { //Can we make this protected void connect()
+    private void connect() throws NetworkException { 
         if (!isConnected()) {
             try {
                 client.connect(connectionOptions);
