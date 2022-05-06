@@ -1,5 +1,4 @@
-/*
- * Copyright 2021 University of Hildesheim, Software Systems Engineering
+/* Copyright 2021 University of Hildesheim, Software Systems Engineering
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
  * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
@@ -14,8 +13,10 @@
  */
 package net.ssehub.devopt.controllayer.model;
 
+
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import net.ssehub.devopt.controllayer.network.HttpRequest;
@@ -27,6 +28,7 @@ import net.ssehub.devopt.controllayer.network.NetworkException;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
+
 
 /**
  * This class realizes a receiver for incoming registration request. Hence, it creates a network connection based on the
@@ -224,9 +226,12 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         }
         return response;
     }
+    
 
+    
     @Override
     public void connectionLost(Throwable cause) {
+    	
         logger.logException(ID, new ModelException(mqttClient + " lost connection", cause));
         logger.logInfo(ID, "Trying to reestablish client connection");
         try {
@@ -249,6 +254,8 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
             byte[] payload = message.getPayload();
             if (payload != null) {
                 /*
+                 * 
+                 * 
                  * TODO the following call returns "null" (if registration successful) or a problem description (if
                  * registration was not successful) depending on the result of processing the registration.
                  * However, it is unclear how such a reply should be delivered: again via an additional
@@ -258,7 +265,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
                  * 
                  * For now there is no reply
                  */
-                processRegistration(new String(payload));
+            	processRegistration(new String(payload));
             }
         }
     }
