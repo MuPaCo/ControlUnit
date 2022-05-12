@@ -108,11 +108,12 @@ public class MqttV3Client extends AbstractNetworkClient {
         MemoryPersistence dataStore = new MemoryPersistence();
         
         connectionOptions = new MqttConnectOptions();
-        connectionOptions.setCleanSession(true); 
-        /* default value; maybe configurable via constructor in future
-        // This default re-connection behavior from the paho mqtt client package
-        // setAutomaticReconnect re-connects to the client after every 2 seconds and increases 
-         the delay to 2 minutes by an increment of 1 second and keeps re-connecting in intervals*/
+        connectionOptions.setCleanSession(true); // default value; maybe configurable via constructor in future
+        /*
+         * This following re-connection behavior from the Paho MQTT client package reconnects the client after every 2
+         * seconds in its first attempt and increases the delay to 2 minutes by an increment of 1 second after each
+         * failed reconnection. After reaching the delay of 2 minutes, the client keeps reconnecting in this interval.
+         */
         connectionOptions.setAutomaticReconnect(true); 
         if (getUsername() != null) {
             connectionOptions.setUserName(getUsername());
