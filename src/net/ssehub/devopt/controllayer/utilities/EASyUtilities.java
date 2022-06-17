@@ -29,6 +29,7 @@ import net.ssehub.easy.basics.modelManagement.ModelManagementException;
 import net.ssehub.easy.basics.progress.ProgressObserver;
 import net.ssehub.easy.varModel.management.VarModel;
 import net.ssehub.easy.varModel.model.Project;
+import net.ssehub.easy.varModel.model.ProjectImport;
 
 /*
  * TODO Loading internal files must be re-implemented
@@ -69,7 +70,7 @@ public class EASyUtilities {
     public static final EASyUtilities INSTANCE = new EASyUtilities();
     
     /**
-     * The identifier if this class, e.g. for printing messages.
+     * The identifier of this class, e.g. for printing messages.
      */
     private static final String ID = EASyUtilities.class.getSimpleName();
     
@@ -274,8 +275,8 @@ public class EASyUtilities {
     }
     
     /**
-     * Adds the given model to the {@link #varModel}. For this purpose, this method first created a new model file in
-     * the {@link #modelDirectory} with the given model file name and write the given model to that file. Second, it
+     * Adds the given model to the {@link #varModel}. For this purpose, this method first creates a new model file in
+     * the {@link #modelDirectory} with the given model file name and writes the given model to that file. Second, it
      * reloads the EASy-Producer components to consider these changes.
      * 
      * @param model the {@link String} representing a complete IVML model
@@ -283,7 +284,9 @@ public class EASyUtilities {
      *        will be added to this file name automatically by this method
      * @return the name of the IVML project as defined in the given model or <code>null</code>, if loading the model
      *         fails
-     * @throws EASyUtilitiesException if adding the new model fails
+     * @throws EASyUtilitiesException if the given model or the given model file name are either <code>null</code> or
+     *         empty; adding (loading) the model unsuccessfully results in a return value of <code>null</code> as
+     *         described above
      */
     public synchronized String addModel(String model, String modelFileName) throws EASyUtilitiesException {
         logger.logDebug(ID, "Adding new model file \"" + modelFileName + "\"");
@@ -297,7 +300,7 @@ public class EASyUtilities {
                     removeModelDirectory(modelDirectory.getAbsolutePath());
                     addModelDirectory(modelDirectory.getAbsolutePath());
                     addedProjectName = getProjectName(modelDirectory, modelFileName);
-                    // TODO validate new model
+                    // TODO validate new model?
                 } catch (FileUtilitiesException e) {
                     throw new EASyUtilitiesException("Creating model file \"" + modelFileName + "\" failed", e);
                 }
@@ -316,8 +319,23 @@ public class EASyUtilities {
      * @return TODO
      */
     public synchronized boolean isValid(Project ivmlProject) {
-        // TODO implement validation using the reasoner
-        return false;
+        boolean isValid = false;
+        if (ivmlProject != null) {
+            int importsCount = ivmlProject.getImportsCount();
+            if (importsCount > 0) {
+                // At least one import, which must be the DevOpt meta model
+                int importsCounter = 0;
+                ProjectImport importedProject;
+                while (!isValid && importsCounter < importsCount) {
+                    importedProject = ivmlProject.getImport(importsCounter); 
+                    if (importedProject.getProjectName().equals("DevOpt_System") && importedProject.isResolved()) {
+                        isValid = true;
+                    }
+                    importsCounter++;
+                }
+            }
+        }
+        return isValid;
     }
     
     /**

@@ -14,13 +14,13 @@
  */
 package net.ssehub.devopt.controllayer.utilities;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.List;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -37,15 +37,9 @@ import net.ssehub.devopt.controllayer.AllTests;
 public class EASyUtilitiesTests {
     
     /**
-     * The constant prefix of each IVML model file created during the tests in this class. This prefix is used to delete
-     * these files again during {@link #teardown()}.
+     * The constant string defining IVML file extension.
      */
-    private static final String NEW_IVML_FILES_PREFIX = "temp_";
-    
-    /**
-     * The canonical path to the {@link AllTests#TEST_IVML_FILES_DIRECTORY}.
-     */
-    private static String testIvmlFilesDirectoryPath;
+    private static final String IVML_MODEL_FILE_EXTENSION = ".ivml";
     
     /**
      * The local reference to the global {@link EASyUtilities}.
@@ -53,83 +47,171 @@ public class EASyUtilitiesTests {
     private static EASyUtilities easyUtilities = EASyUtilities.INSTANCE;
     
     /**
-     * All files in the directory denoted by the {@link #testIvmlFilesDirectoryPath}, which have a name ending with the
-     * <code>.ivml</code>-extension.
+     * The file denoting an initially empty directory as temporal model directory to start the EASy-Producer components
+     * without immediately loading models at start-up. The individual tests in this class may add models to that
+     * directory via the {@link #easyUtilities}-
      */
-//    private static File[] testIvmlFiles;
+    private static File tempModelDirectory;
     
     /**
-     * Sets the {@link #testIvmlFilesDirectoryPath} and the {@link #testIvmlFiles}. Further, this method starts the
-     * EASy-Producer components of the {@link #easyUtilities}.
+     * Creates the {@link #tempModelDirectory} and starts the EASy-Producer components of the {@link #easyUtilities}
+     * using that directory as model directory.
      */
     @BeforeClass
     public static void setup() {
+        // Create temporal, empty model directory to start the EASy components without immediately loading models 
+        tempModelDirectory = new File(AllTests.TEST_IVML_FILES_DIRECTORY, "test_" + System.currentTimeMillis());
         try {
-            testIvmlFilesDirectoryPath = AllTests.TEST_IVML_FILES_DIRECTORY.getCanonicalPath();
-        } catch (IOException e) {
+            tempModelDirectory = FileUtilities.INSTANCE.createDirectory(tempModelDirectory.getAbsolutePath());
+        } catch (FileUtilitiesException e) {
             fail(e);
         }
+        // Start the EASy components using the canonical path to the model directory created above
         try {
-            easyUtilities.startEASyComponents(testIvmlFilesDirectoryPath);
-        } catch (EASyUtilitiesException e) {
+            easyUtilities.startEASyComponents(tempModelDirectory.getCanonicalPath());
+        } catch (IOException | EASyUtilitiesException e) {
             fail(e);
         }
-        
-//        testIvmlFiles = AllTests.TEST_IVML_FILES_DIRECTORY.listFiles(new FilenameFilter() {
-//            
-//            @Override
-//            public boolean accept(File dir, String name) {
-//                return name.endsWith(".ivml");
-//            }
-//        });
     }
     
     /**
-     * Stops the EASy-Producer components of the {@link #easyUtilities} and deletes all IVML model files created during
-     * the tests in this class.
+     * Stops the EASy-Producer components of the {@link #easyUtilities} and deletes the {@link #tempModelDirectory} 
+     * including its content created during the tests in this class.
      */
     @AfterClass
     public static void teardown() {
+        // Stop the EASy components
         try {
             easyUtilities.stopEASyComponents();
         } catch (EASyUtilitiesException e) {
             fail(e);
         }
-        
-        File[] createdIvmlFiles = AllTests.TEST_IVML_FILES_DIRECTORY.listFiles(new FilenameFilter() {
-            
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.startsWith(NEW_IVML_FILES_PREFIX);
-            }
-        });
-        for (int i = 0; i < createdIvmlFiles.length; i++) {
-            try {
-                FileUtilities.INSTANCE.delete(createdIvmlFiles[i]);
-            } catch (FileUtilitiesException e) {
-                fail(e);
-            }
+        // Delete the temporal model directory and all its content used for the tests in this class only
+        try {
+            FileUtilities.INSTANCE.delete(tempModelDirectory);
+        } catch (FileUtilitiesException e) {
+            fail(e);
         }
     }
     
     /**
-     * Tests whether the addition of a new model is successful.
+     * Tests whether the addition of an empty string (no content at all) results in the expected error.
      */
     @Test
-    public void testAddModel() {
-        String newModelString = "project NewModel {\r\n"
-                + "\r\n"
-                + "    import DevOpt_System;"
-                + "}";
-        String newModelFileName = NEW_IVML_FILES_PREFIX + System.currentTimeMillis();
-        
+    public void testAddEmptyString() {
         try {
-            String addedProjectName = easyUtilities.addModel(newModelString, newModelFileName);
-            assertEquals("NewModel", addedProjectName, "No or wrong IVML model added");
+            easyUtilities.addModel("", "NoFileUsed");
+            fail("Addition of empty string");
         } catch (EASyUtilitiesException e) {
-            e.printStackTrace();
-            assertNull(e, "Adding a new model should not throw an excpetion");
+            assertNotNull("Addition of empty string as model must cause an excpetion", e);
         }
+    }
+    
+    /**
+     * Tests whether the addition of a valid, empty project is successful.
+     */
+    @Test
+    public void testAddModelValidEmptyProject() {
+        String testIvmlProjectName = "EmptyProject";
+        String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        try {
+            String ivmlModelString = getIvmlModelString(testIvmlModelFile);
+            String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
+            assertEquals(testIvmlProjectName, addedProjectName, "Addition of new model returned wrong project name");
+            assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Added new model not loaded");
+        } catch (EASyUtilitiesException e) {
+            fail("Addition of valid project must not cause an excpetion", e);
+        }
+    }
+    
+    /**
+     * Tests whether the addition of an erroneous project (missing closing bracket for project definition) fails.
+     */
+    @Test
+    public void testAddModelProjectMissingClosingBracket() {
+        String testIvmlProjectName = "ProjectMissingClosingBracket";
+        String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        try {
+            String ivmlModelString = getIvmlModelString(testIvmlModelFile);
+            String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
+            assertEquals(null, addedProjectName, "Addition of erroneous model definition");
+            assertEquals(null, getLoadedProjectName(testIvmlProjectName), "Erroneous model loaded");
+        } catch (EASyUtilitiesException e) {
+            fail("Addition of invalid project must not cause an excpetion", e);
+        }
+    }
+    
+    /**
+     * Tests whether the addition of a valid DevOpt model is successful.
+     */
+    @Test
+    public void testAddModelValidDevOptProject() {
+        String testIvmlProjectName = "DevOpt_E3_1_Modeling_Approach";
+        String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        try {
+            String ivmlModelString = getIvmlModelString(testIvmlModelFile);
+            String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
+            assertEquals(testIvmlProjectName, addedProjectName, "Addition of erroneous model definition");
+            assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Erroneous model loaded");
+        } catch (EASyUtilitiesException e) {
+            fail("Addition of valid project must not cause an excpetion", e);
+        }
+    }
+
+    /*
+     * TODO implement further tests, like:
+     *     addition, validation and removal of correct DevOpt Model
+     *     addition of DevOpt Model not following meta-model
+     */
+    
+    /**
+     * Reads the content of the given file and returns it as a single string using {@link System#lineSeparator()} to
+     * concatenate individual file lines.
+     * 
+     * @param ivmlModelFile the file to read to content from
+     * @return the content of the given file or <code>null</code>, if reading the content fails
+     */
+    private String getIvmlModelString(File ivmlModelFile) {
+        String ivmlModelString = null;
+        List<String> testIvmlFileLines;
+        try {
+            testIvmlFileLines = FileUtilities.INSTANCE.readFile(ivmlModelFile);
+            StringBuilder ivmlModelStringBuilder = new StringBuilder();
+            for (String testIvmlFileLine : testIvmlFileLines) {
+                ivmlModelStringBuilder.append(testIvmlFileLine);
+                ivmlModelStringBuilder.append(System.lineSeparator());
+            }
+            ivmlModelString = ivmlModelStringBuilder.toString();
+        } catch (FileUtilitiesException e) {
+            e.printStackTrace();
+        }
+        return ivmlModelString;
+    }
+    
+    /**
+     * Searches in the list of all IVML projects currently loaded by the {@link #easyUtilities} for a project with the
+     * given name.
+     * 
+     * @param searchProjectName the name of the project to search for
+     * @return the name of the project equal to the given project name or <code>null</code>, if no such project is
+     *         loaded
+     */
+    private String getLoadedProjectName(String searchProjectName) {
+        String foundProjectName = null;
+        List<String> loadedProjectNames = easyUtilities.getProjectNames();
+        int loadedProjectNamesCounter = 0;
+        String loadedProjectName;
+        while (foundProjectName == null && loadedProjectNamesCounter < loadedProjectNames.size()) {
+            loadedProjectName = loadedProjectNames.get(loadedProjectNamesCounter); 
+            if (loadedProjectName.equals(searchProjectName)) {
+                foundProjectName = loadedProjectName;
+            }
+            loadedProjectNamesCounter++;
+        }
+        return foundProjectName;
     }
     
 }
