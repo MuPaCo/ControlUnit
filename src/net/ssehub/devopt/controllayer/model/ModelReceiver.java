@@ -16,13 +16,13 @@ package net.ssehub.devopt.controllayer.model;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import net.ssehub.devopt.controllayer.network.HttpRequest;
 import net.ssehub.devopt.controllayer.network.HttpRequestCallback;
 import net.ssehub.devopt.controllayer.network.HttpResponse;
 import net.ssehub.devopt.controllayer.network.HttpServer;
+import net.ssehub.devopt.controllayer.network.HttpServer.ServerState;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
@@ -177,21 +177,44 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         if (mqttClient != null) {
             try {
                 mqttClient.subscribe(receptionChannel, 2, this);
-                logger.logInfo(ID, "ModelReceiver started", mqttClient.toString());
+                logger.logInfo(ID, "Model receiver started", mqttClient.toString());
             } catch (NetworkException e) {
                 throw new ModelException("Starting model receiver client failed", e);
             }
-        } else if (httpServer != null) {
+        } else if (httpServer != null && httpServer.getState() == ServerState.INITIALIZED) {
             try {
                 httpServer.addContext(receptionChannel, this);
                 httpServer.start();
-                logger.logInfo(ID, "ModelReceiver started", httpServer.toString());
+                logger.logInfo(ID, "Model receiver started", httpServer.toString());
             } catch (NetworkException e) {
                 throw new ModelException("Starting model receiver server failed", e);
             }
         } else {
             // Should never be reached
             throw new ModelException("Starting model receiver failed: missing connection instance");
+        }
+    }
+    
+    /**
+     * Stops this instance by either closing the MQTT client or stopping the local HTTP server. Which alternative is
+     * executed depends on the protocol given to the constructor of this instance.
+     *   
+     * @throws ModelException if closing the MQTT client fails; stopping the server will always be successful
+     */
+    public void stop() throws ModelException {
+        if (mqttClient != null) {
+            try {
+                mqttClient.close();
+                logger.logInfo(ID, "Model receiver stopped", mqttClient.toString());
+            } catch (NetworkException e) {
+                throw new ModelException("Stopping model receiver client failed", e);
+            }
+        } else if (httpServer != null && httpServer.getState() == ServerState.RUNNING) {
+            httpServer.stop(10);
+            logger.logInfo(ID, "ModelReceiver stopped", httpServer.toString());
+        } else {
+            // Should never be reached
+            throw new ModelException("Stopping model receiver failed: missing connection instance");
         }
     }
     
@@ -227,11 +250,8 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         return response;
     }
     
-
-    
     @Override
     public void connectionLost(Throwable cause) {
-    	
         logger.logException(ID, new ModelException(mqttClient + " lost connection", cause));
         logger.logInfo(ID, "Trying to reestablish client connection");
         try {
@@ -253,19 +273,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         if (message != null) {
             byte[] payload = message.getPayload();
             if (payload != null) {
-                /*
-                 * 
-                 * 
-                 * TODO the following call returns "null" (if registration successful) or a problem description (if
-                 * registration was not successful) depending on the result of processing the registration.
-                 * However, it is unclear how such a reply should be delivered: again via an additional
-                 * MQTT client for publishing (which would mean that the sender waits for that reply and disconnects
-                 * later and we need another client for publishing) or via HTTP, but thats a completely different
-                 * protocol
-                 * 
-                 * For now there is no reply
-                 */
-            	processRegistration(new String(payload));
+                processRegistration(new String(payload));
             }
         }
     }
