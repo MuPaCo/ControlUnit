@@ -301,8 +301,12 @@ public class EASyUtilities {
                     addModelDirectory(modelDirectory.getAbsolutePath());
                     addedProjectName = getProjectName(modelDirectory, modelFileName);
                     // TODO validate new model?
+                    if (addedProjectName == null) {
+                        // Model file created, but addition failed; hence, delete model file again
+                        FileUtilities.INSTANCE.delete(new File(modelDirectory, modelFileName));
+                    }
                 } catch (FileUtilitiesException e) {
-                    throw new EASyUtilitiesException("Creating model file \"" + modelFileName + "\" failed", e);
+                    throw new EASyUtilitiesException("Managing model file \"" + modelFileName + "\" failed", e);
                 }
             } else {
                 throw new EASyUtilitiesException("Adding a model without a model file name is not supported");

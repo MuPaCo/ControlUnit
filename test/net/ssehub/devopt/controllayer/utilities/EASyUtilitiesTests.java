@@ -16,6 +16,7 @@ package net.ssehub.devopt.controllayer.utilities;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
@@ -138,6 +139,9 @@ public class EASyUtilitiesTests {
             String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
             assertEquals(null, addedProjectName, "Addition of erroneous model definition");
             assertEquals(null, getLoadedProjectName(testIvmlProjectName), "Erroneous model loaded");
+            // Failed addition must also ensure deleting the model file again
+            File modelFileCreatedByEasy = new File(tempModelDirectory, testIvmlModelFileName);
+            assertFalse(modelFileCreatedByEasy.exists(), "Missing deletion of file containng errneous model");
         } catch (EASyUtilitiesException e) {
             fail("Addition of invalid project must not cause an excpetion", e);
         }
