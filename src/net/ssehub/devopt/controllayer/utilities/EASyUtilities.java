@@ -323,6 +323,7 @@ public class EASyUtilities {
      * @return TODO
      */
     public synchronized boolean isValid(Project ivmlProject) {
+        // TODO use IDatatype visitor to check for existence of certain elements in the given project
         boolean isValid = false;
         if (ivmlProject != null) {
             int importsCount = ivmlProject.getImportsCount();
