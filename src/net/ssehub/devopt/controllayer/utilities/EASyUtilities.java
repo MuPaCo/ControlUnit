@@ -292,7 +292,7 @@ public class EASyUtilities {
         logger.logDebug(ID, "Adding new model file \"" + modelFileName + "\"");
         String addedProjectName = null;
         if (model != null && model.length() > 0) {
-            if (modelFileName != null && modelFileName.length() > 0) {
+            if (modelFileName != null && !modelFileName.isBlank()) {
                 modelFileName = modelFileName + ".ivml";
                 try {
                     FileUtilities.INSTANCE.writeFile(modelDirectory.getAbsolutePath(), modelFileName, model,
@@ -352,8 +352,11 @@ public class EASyUtilities {
      * @return the name of the IVML project or <code>null</code>, if no project for the given model file is known
      */
     public String getProjectName(String modelFileName) {
-        modelFileName = modelFileName + ".ivml";
-        return getProjectName(modelDirectory, modelFileName);
+        String projectName = null;
+        if (modelFileName != null && !modelFileName.isBlank()) {
+            projectName = getProjectName(modelDirectory, modelFileName + ".ivml");
+        }
+        return projectName;
     }
     
     /**
@@ -373,8 +376,8 @@ public class EASyUtilities {
             URI modelFileUri = modelFile.toURI();
             projectName = getProjectName(modelFileUri);
         } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.logWarning(ID, "Retrieving project name from file \"" + modelFileName +  "\" failed");
+            logger.logException(ID, e);
         }
         return projectName;
     }
