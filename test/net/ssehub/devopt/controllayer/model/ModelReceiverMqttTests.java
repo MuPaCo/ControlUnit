@@ -267,17 +267,50 @@ public class ModelReceiverMqttTests {
     }
     
     /**
-     * Tests the correct reaction to the reception of an incoming message with content that is a valid IVML-based
-     * DevOpt model (content of <i>DevOpt_E3_1_Modeling_Approach.ivml</i> of the projects test data directory).
+     * Tests the correct reaction to the reception of an incoming message with content that is an invalid IVML-based
+     * DevOpt model (content of <i>InvalidDevOptProject.ivml</i> of the projects test data directory).
      */
     @Test
-    public void testReceiveMessageWithDevOptModelContent() {
-        String testIvmlProjectName = "DevOpt_E3_1_Modeling_Approach";
+    public void testReceiveMessageWithInvalidDevOptModelContent() {
+        String testIvmlProjectName = "InvalidDevOptProject";
+        String testIvmlModelFileName = testIvmlProjectName + ".ivml";
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String messageContent = getIvmlModelString(testIvmlModelFile);
+        MqttMessage message = new MqttMessage(messageContent.getBytes());
+        boolean expectedWasCalled = false;
+        String expectedReceivedIvmlProjectName = null;
+        try {
+            modelReceiver.messageArrived(TEST_TOPIC, message);
+            assertEquals(expectedWasCalled, callback.wasCalled(),
+                    "Callback must be called, if message content is a valid IVML-based DevOpt model");
+            /*
+             * Model receiver creates IVML files with file names based on current time in milliseconds. Hence, we cannot
+             * check for the correct file name, but only for it being available or not.
+             */
+            assertNull("Callback must not hold a file name, if message content is an invalid IVML-based DevOpt model",
+                    callback.getReceivedIvmlFileName());
+            assertEquals(expectedReceivedIvmlProjectName, callback.getReceivedIvmlProjectName(),
+                    "Callback must not hold a project name, if message content is an invalid IVML-based DevOpt model");
+        // checkstyle: stop exception type check
+        } catch (Exception e) {
+        // checkstyle: resume exception type check
+            fail("Processing must not throw exceptions, if message content is an invalid IVML-based DevOpt model", e);
+        }
+    }
+    
+    /**
+     * Tests the correct reaction to the reception of an incoming message with content that is a valid minimal IVML-
+     * based DevOpt model (content of <i>MinimalDevOptProject.ivml</i> of the projects test data directory).
+     */
+    @Test
+    public void testReceiveMessageWithValidMinimalDevOptModelContent() {
+        String testIvmlProjectName = "MinimalDevOptProject";
         String testIvmlModelFileName = testIvmlProjectName + ".ivml";
         File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
         String messageContent = getIvmlModelString(testIvmlModelFile);
         MqttMessage message = new MqttMessage(messageContent.getBytes());
         boolean expectedWasCalled = true;
+        String expectedReceivedIvmlProjectName = "MinimalDevOptProject";
         try {
             modelReceiver.messageArrived(TEST_TOPIC, message);
             assertEquals(expectedWasCalled, callback.wasCalled(),
@@ -288,7 +321,7 @@ public class ModelReceiverMqttTests {
              */
             assertNotNull("Callback must hold a file name, if message content is a valid IVML-based DevOpt model",
                     callback.getReceivedIvmlFileName());
-            assertEquals(testIvmlProjectName, callback.getReceivedIvmlProjectName(),
+            assertEquals(expectedReceivedIvmlProjectName, callback.getReceivedIvmlProjectName(),
                     "Callback must hold the project name of the valid IVML-based DevOpt model in the message content");
         // checkstyle: stop exception type check
         } catch (Exception e) {

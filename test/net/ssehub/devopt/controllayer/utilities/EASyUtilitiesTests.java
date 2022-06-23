@@ -17,7 +17,6 @@ package net.ssehub.devopt.controllayer.utilities;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
@@ -29,6 +28,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import net.ssehub.devopt.controllayer.AllTests;
+import net.ssehub.easy.varModel.confModel.Configuration;
+import net.ssehub.easy.varModel.model.Project;
 
 /**
  * This class contains unit tests for the {@link EASyUtilities}.
@@ -44,6 +45,11 @@ public class EASyUtilitiesTests {
     private static final String IVML_MODEL_FILE_EXTENSION = ".ivml";
     
     /**
+     * The constant number of IVML files defining the DevOpt meta model.
+     */
+    private static final int META_MODEL_FILE_COUNT = 10;
+    
+    /**
      * The local reference to the global {@link EASyUtilities}.
      */
     private static EASyUtilities easyUtilities = EASyUtilities.INSTANCE;
@@ -54,6 +60,12 @@ public class EASyUtilitiesTests {
      * directory via the {@link #easyUtilities}-
      */
     private static File tempModelDirectory;
+    
+    /**
+     * The definition of whether the DevOpt meta model was loaded as part of one of the tests in this class
+     * (<code>true</code>) or not (<code>false</code>).
+     */
+    private boolean metaModelLoaded = false;
     
     /**
      * Creates the {@link #tempModelDirectory} and starts the EASy-Producer components of the {@link #easyUtilities}
@@ -114,18 +126,30 @@ public class EASyUtilitiesTests {
      */
     @Test
     public void testAddModelValidEmptyProject() {
-        String testIvmlProjectName = "EmptyProject";
+        int expectedAvailableProjectCount = easyUtilities.getProjectNames().size() + 1;
+        String expectedIvmlProjectName = "EmptyProject";
+        String testIvmlProjectName = expectedIvmlProjectName;
         String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
         File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
+        
         try {
-            String ivmlModelString = getIvmlModelString(testIvmlModelFile);
-            String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
-            String availableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            String actualAddedProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAddedProjectName, "Wrong added project");
             
-            assertEquals(testIvmlProjectName, addedProjectName, "Addition of new model returned wrong project name");
-            assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Added new model not loaded");
-            assertEquals(testIvmlProjectName, availableProjectName, "Added new model not available");
-            assertNotNull("New project must be available", easyUtilities.getProject(testIvmlProjectName));
+            Configuration actualAvailableProjectConfiguration = easyUtilities.getConfiguration(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectConfiguration.getName(),
+                    "Wrong available configuration");
+            
+            Project actualAvailableProject = easyUtilities.getProject(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProject.getName(), "Wrong available project");
+            
+            String actualAvailableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectName, "Wrong available project name");
+            
+            int actualAvailableProjectCount = easyUtilities.getProjectNames().size();
+            assertEquals(expectedAvailableProjectCount, actualAvailableProjectCount,
+                    "Wrong number of available projects");
         } catch (EASyUtilitiesException e) {
             fail("Addition of valid project must not cause an excpetion", e);
         }
@@ -136,54 +160,108 @@ public class EASyUtilitiesTests {
      */
     @Test
     public void testAddModelProjectMissingClosingBracket() {
+        int expectedAvailableProjectCount = easyUtilities.getProjectNames().size(); // constant as addition must fail
         String testIvmlProjectName = "ProjectMissingClosingBracket";
         String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
         File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
+        
         try {
-            String ivmlModelString = getIvmlModelString(testIvmlModelFile);
-            String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
-            String availableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            String actualAddedProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
+            assertNull("Wrong added project", actualAddedProjectName);
             
-            assertEquals(null, addedProjectName, "Addition of erroneous model definition");
-            assertEquals(null, getLoadedProjectName(testIvmlProjectName), "Erroneous model loaded");
-            assertEquals(null, availableProjectName, "Added new model not available");
-            assertNull("No new project must be available", easyUtilities.getProject(testIvmlProjectName));
+            Configuration actualAvailableProjectConfiguration = easyUtilities.getConfiguration(testIvmlProjectName);
+            assertNull("Wrong available configuration", actualAvailableProjectConfiguration);
             
-            // Failed addition must also ensure deleting the model file again
-            File modelFileCreatedByEasy = new File(tempModelDirectory, testIvmlModelFileName);
-            assertFalse(modelFileCreatedByEasy.exists(), "Missing deletion of file containng errneous model");
+            Project actualAvailableProject = easyUtilities.getProject(testIvmlProjectName);
+            assertNull("Wrong available project", actualAvailableProject);
+            
+            String actualAvailableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            assertNull("Wrong available project name", actualAvailableProjectName);
+            
+            int actualAvailableProjectCount = easyUtilities.getProjectNames().size();
+            assertEquals(expectedAvailableProjectCount, actualAvailableProjectCount,
+                    "Wrong number of available projects");
+        } catch (EASyUtilitiesException e) {
+            fail("Addition of erroneous project must not cause an excpetion", e);
+        }
+    }
+    
+    /**
+     * Tests whether the addition of an invalid DevOpt model (semantical errors detected by the reasoner) fails.
+     */
+    @Test
+    public void testAddModelInvalidDevOptProject() {
+        int expectedAvailableProjectCount = easyUtilities.getProjectNames().size(); // constant as addition must fail
+        String testIvmlProjectName = "InvalidDevOptProject";
+        String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
+        
+        try {
+            String actualAddedProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
+            assertNull("Wrong added project", actualAddedProjectName);
+            
+            Configuration actualAvailableProjectConfiguration = easyUtilities.getConfiguration(testIvmlProjectName);
+            assertNull("Wrong available configuration", actualAvailableProjectConfiguration);
+            
+            Project actualAvailableProject = easyUtilities.getProject(testIvmlProjectName);
+            assertNull("Wrong available project", actualAvailableProject);
+            
+            String actualAvailableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            assertNull("Wrong available project name", actualAvailableProjectName);
+            
+            int actualAvailableProjectCount = easyUtilities.getProjectNames().size();
+            assertEquals(expectedAvailableProjectCount, actualAvailableProjectCount,
+                    "Wrong number of available projects");
         } catch (EASyUtilitiesException e) {
             fail("Addition of invalid project must not cause an excpetion", e);
         }
     }
     
     /**
-     * Tests whether the addition of a valid DevOpt model is successful.
+     * Tests whether the addition of a valid, minimal DevOpt model is successful.
      */
     @Test
-    public void testAddModelValidDevOptProject() {
-        String testIvmlProjectName = "DevOpt_E3_1_Modeling_Approach";
+    public void testAddModelMinimalDevOptProject() {
+        int expectedAvailableProjectCount = easyUtilities.getProjectNames().size() + 1;
+        if (!metaModelLoaded) {
+            /*
+             * If this is the first time a valid model based on the DevOpt meta model is loaded, it is also the first
+             * time that all meta model projects are loaded due to their import structure. Hence, the expected number
+             * of available projects after adding the desired one in this test must be increased by the number of meta
+             * model projects.  
+             */
+            expectedAvailableProjectCount = expectedAvailableProjectCount + META_MODEL_FILE_COUNT;
+            metaModelLoaded = true;
+        }
+        String expectedIvmlProjectName = "MinimalDevOptProject";
+        String testIvmlProjectName = expectedIvmlProjectName;
         String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
         File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
+        
         try {
-            String ivmlModelString = getIvmlModelString(testIvmlModelFile);
-            String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
-            String availableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            String actualAddedProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAddedProjectName, "Wrong added project");
             
-            assertEquals(testIvmlProjectName, addedProjectName, "Addition of new model returned wrong project name");
-            assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Added new model not loaded");
-            assertEquals(testIvmlProjectName, availableProjectName, "Added new model not available");
-            assertNotNull("New project must be available", easyUtilities.getProject(testIvmlProjectName)); 
+            Configuration actualAvailableProjectConfiguration = easyUtilities.getConfiguration(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectConfiguration.getName(),
+                    "Wrong available configuration");
+            
+            Project actualAvailableProject = easyUtilities.getProject(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProject.getName(), "Wrong available project");
+            
+            String actualAvailableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectName, "Wrong available project name");
+            
+            int actualAvailableProjectCount = easyUtilities.getProjectNames().size();
+            assertEquals(expectedAvailableProjectCount, actualAvailableProjectCount,
+                    "Wrong number of available projects");
         } catch (EASyUtilitiesException e) {
             fail("Addition of valid project must not cause an excpetion", e);
         }
     }
-
-    /*
-     * TODO implement further tests, like:
-     *     addition, validation and removal of correct DevOpt Model
-     *     addition of DevOpt Model not following meta-model
-     */
     
     /**
      * Reads the content of the given file and returns it as a single string using {@link System#lineSeparator()} to
@@ -207,29 +285,6 @@ public class EASyUtilitiesTests {
             e.printStackTrace();
         }
         return ivmlModelString;
-    }
-    
-    /**
-     * Searches in the list of all IVML projects currently loaded by the {@link #easyUtilities} for a project with the
-     * given name.
-     * 
-     * @param searchProjectName the name of the project to search for
-     * @return the name of the project equal to the given project name or <code>null</code>, if no such project is
-     *         loaded
-     */
-    private String getLoadedProjectName(String searchProjectName) {
-        String foundProjectName = null;
-        List<String> loadedProjectNames = easyUtilities.getProjectNames();
-        int loadedProjectNamesCounter = 0;
-        String loadedProjectName;
-        while (foundProjectName == null && loadedProjectNamesCounter < loadedProjectNames.size()) {
-            loadedProjectName = loadedProjectNames.get(loadedProjectNamesCounter); 
-            if (loadedProjectName.equals(searchProjectName)) {
-                foundProjectName = loadedProjectName;
-            }
-            loadedProjectNamesCounter++;
-        }
-        return foundProjectName;
     }
     
 }

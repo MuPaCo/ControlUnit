@@ -1,0 +1,7 @@
+project MinimalDevOptProject {
+
+    import DevOpt_System;
+    
+    Entity entityDeclaration;
+    
+}

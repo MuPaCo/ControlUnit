@@ -27,9 +27,12 @@ import net.ssehub.easy.basics.modelManagement.AvailableModels;
 import net.ssehub.easy.basics.modelManagement.ModelInfo;
 import net.ssehub.easy.basics.modelManagement.ModelManagementException;
 import net.ssehub.easy.basics.progress.ProgressObserver;
+import net.ssehub.easy.reasoning.core.frontend.ReasonerFrontend;
+import net.ssehub.easy.reasoning.core.reasoner.ReasonerConfiguration;
+import net.ssehub.easy.reasoning.core.reasoner.ReasoningResult;
+import net.ssehub.easy.varModel.confModel.Configuration;
 import net.ssehub.easy.varModel.management.VarModel;
 import net.ssehub.easy.varModel.model.Project;
-import net.ssehub.easy.varModel.model.ProjectImport;
 
 /*
  * TODO Loading internal files must be re-implemented
@@ -220,9 +223,8 @@ public class EASyUtilities {
                             }
                         }
                     }
-                } catch (IOException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
+                } catch (IOException e) {
+                    throw new EASyUtilitiesException("Creating canonical path for model loading failed", e);
                 }
             }
         }
@@ -266,11 +268,47 @@ public class EASyUtilities {
     private void removeModelDirectory(String modelDirectoryPath) throws EASyUtilitiesException {
         File modelDirectory = new File(modelDirectoryPath);
         try {
-            // TODO unload the respective models first
+            unloadModels(modelDirectory);
             varModel.locations().removeLocation(modelDirectory, EASY_PROGRESS_OBSERVER);
         } catch (ModelManagementException e) {
             throw new EASyUtilitiesException("Removing IVML model directory \"" + modelDirectory.getAbsolutePath()
                     + "\" failed", e);
+        }
+    }
+    
+    /**
+     * Unloads all model (IVML) files in the given directory. This method applies a file name filter reducing the set of
+     * files to be considered to those having a file name, which ends with the <code>*.ivml</code>-extension.
+     * 
+     * @param modelDirectory the directory in which the IVML models are saved; must not be <code>null</code> and always
+     *        an existing directory
+     * @throws EASyUtilitiesException if unloading a model file in the given directory fails
+     */
+    private void unloadModels(File modelDirectory) throws EASyUtilitiesException {
+        File[] modelFiles = modelDirectory.listFiles(new FilenameFilter() {
+            
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".ivml");
+            }
+        });
+        
+        if (modelFiles != null) {
+            File modelFile;
+            String projectName;
+            for (int i = 0; i < modelFiles.length; i++) {
+                modelFile = modelFiles[i];
+                try {
+                    // TODO should be more elegant to avoid "." within paths to match correct URI in varModel
+                    modelFile = new File(modelFile.getCanonicalPath());
+                    projectName = getProjectName(modelFile.toURI());
+                    if (projectName != null) {
+                        removeModel(projectName);
+                    }
+                } catch (IOException e) {
+                    throw new EASyUtilitiesException("Creating canonical path for model unloading failed", e);
+                }
+            }
         }
     }
     
@@ -300,13 +338,24 @@ public class EASyUtilities {
                     removeModelDirectory(modelDirectory.getAbsolutePath());
                     addModelDirectory(modelDirectory.getAbsolutePath());
                     addedProjectName = getProjectName(modelDirectory, modelFileName);
-                    // TODO validate new model?
                     if (addedProjectName == null) {
-                        // Model file created, but addition failed; hence, delete model file again
+                        // The model file was created, but the addition of the model failed: delete the model file again
                         FileUtilities.INSTANCE.delete(new File(modelDirectory, modelFileName));
+                    } else if (!isValid(addedProjectName)) {
+                        /*
+                         * The model file creation and its addition was successful, but the model is not valid:
+                         *   - Remove the model again
+                         *   - Delete the model file again
+                         *   - Reload model pool
+                         */
+                        removeModel(addedProjectName);
+                        FileUtilities.INSTANCE.delete(new File(modelDirectory, modelFileName));
+                        removeModelDirectory(modelDirectory.getAbsolutePath());
+                        addModelDirectory(modelDirectory.getAbsolutePath());
+                        addedProjectName = null;
                     }
                 } catch (FileUtilitiesException e) {
-                    throw new EASyUtilitiesException("Managing model file \"" + modelFileName + "\" failed", e);
+                    throw new EASyUtilitiesException("Adding model file \"" + modelFileName + "\" failed", e);
                 }
             } else {
                 throw new EASyUtilitiesException("Adding a model without a model file name is not supported");
@@ -318,29 +367,64 @@ public class EASyUtilities {
     }
     
     /**
-     * TODO .
-     * @param ivmlProject TODO
-     * @return TODO
+     * Removes the IVML {@link Project} denoted by the given name from the {@link #varModel}.
+     * 
+     * @param projectName the name of the IVML project to remove
+     * @throws EASyUtilitiesException if the given project name denotes an unknown model or unloading the model fails.
      */
-    public synchronized boolean isValid(Project ivmlProject) {
-        // TODO use IDatatype visitor to check for existence of certain elements in the given project
+    public synchronized void removeModel(String projectName) throws EASyUtilitiesException {
+        Project project = getProject(projectName);
+        if (project != null) {
+            try {
+                varModel.unload(project, ProgressObserver.NO_OBSERVER);
+            } catch (ModelManagementException e) {
+                throw new EASyUtilitiesException("Removing model \"" + projectName + "\" failed", e);
+            }
+        } else {
+            throw new EASyUtilitiesException("Removing unknown model \"" + projectName + "\" is not possible");
+        }
+    }
+    
+    /**
+     * Checks the {@link Configuration} based on the {@link Project} with the given project name for having conflicts
+     * using the IVML reasoner provided by the EASy-Producer components.
+     * 
+     * @param projectName the name of the project to convert to a configuration for checking for potential conflicts in
+     *        its definition
+     * @return <code>true</code>, if there are no conflicts; <code>false</code> otherwise, including the situation that
+     *         no such project is known or the given name is <code>null</code> or <i>blank</i>
+     */
+    private boolean isValid(String projectName) {
         boolean isValid = false;
-        if (ivmlProject != null) {
-            int importsCount = ivmlProject.getImportsCount();
-            if (importsCount > 0) {
-                // At least one import, which must be the DevOpt meta model
-                int importsCounter = 0;
-                ProjectImport importedProject;
-                while (!isValid && importsCounter < importsCount) {
-                    importedProject = ivmlProject.getImport(importsCounter); 
-                    if (importedProject.getProjectName().equals("DevOpt_System") && importedProject.isResolved()) {
-                        isValid = true;
-                    }
-                    importsCounter++;
-                }
+        Configuration projectConfiguration = getConfiguration(projectName);
+        if (projectConfiguration != null) {
+            ReasonerConfiguration reasonerConfiguration = new ReasonerConfiguration();
+            try {                
+                ReasoningResult reasoningResult = ReasonerFrontend.getInstance()
+                        .propagate(projectConfiguration, reasonerConfiguration, ProgressObserver.NO_OBSERVER);
+                isValid = !reasoningResult.hasConflict();
+            } catch (NullPointerException e) {
+                // Not documented, but was thrown by some tests
+                logger.logException(ID, e);
             }
         }
         return isValid;
+    }
+    
+    /**
+     * Retrieves the {@link Project} with the given name and converts it into a {@link Configuration} of that project.
+     * 
+     * @param projectName the name of the project to search for
+     * @return the {@link Configuration} based on the retrieved project or <code>null</code>, if no such project is
+     *         known or the given name is <code>null</code> or <i>blank</i>
+     */
+    public synchronized Configuration getConfiguration(String projectName) {
+        Configuration configuration = null;
+        Project project = getProject(projectName);
+        if (project != null) {
+            configuration = new Configuration(project);
+        }
+        return configuration;
     }
     
     /**
@@ -352,7 +436,7 @@ public class EASyUtilities {
      * @return the {@link Project} with the given name or <code>null</code>, if no such project is known or the given
      *         name is <code>null</code> or <i>blank</i> 
      */
-    public Project getProject(String projectName) {
+    public synchronized Project getProject(String projectName) {
         Project project = null;
         if (projectName != null && !projectName.isBlank()) {
             int modelCount = varModel.getModelCount();
@@ -378,7 +462,7 @@ public class EASyUtilities {
      *        method
      * @return the name of the IVML project or <code>null</code>, if no project for the given model file is known
      */
-    public String getProjectName(String modelFileName) {
+    public synchronized String getProjectName(String modelFileName) {
         String projectName = null;
         if (modelFileName != null && !modelFileName.isBlank()) {
             projectName = getProjectName(modelDirectory, modelFileName + ".ivml");
@@ -428,18 +512,9 @@ public class EASyUtilities {
     }
     
     /**
-     * TODO Removes the IVML project denoted by the give name from the {@link #varModel}.
-     * 
-     * @param projectName the name of the IVML project to remove
-     */
-    public synchronized void removeModel(String projectName) {
-        // TODO implement model removal at runtime including its unloading first
-    }
-    
-    /**
      * Returns the current list of names of all IVML projects loaded in the {@link #varModel}.
      * 
-     * @return the list names of of all loaded IVML projects; never <code>null</code>, but may be <i>empty</i>
+     * @return the list of names of all loaded IVML projects; never <code>null</code>, but may be <i>empty</i>
      */
     public synchronized List<String> getProjectNames() {
         List<String> projectNames = new ArrayList<String>();
