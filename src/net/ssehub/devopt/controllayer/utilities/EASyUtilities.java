@@ -343,6 +343,32 @@ public class EASyUtilities {
     }
     
     /**
+     * Iterates the known {@link Project}s in the {@link #varModel} and returns the first one, which has the given
+     * project name. This method does not support any sophisticated checks regarding the correct project, but depends
+     * solely on its name.
+     *  
+     * @param projectName the name of the project to search for
+     * @return the {@link Project} with the given name or <code>null</code>, if no such project is known or the given
+     *         name is <code>null</code> or <i>blank</i> 
+     */
+    public Project getProject(String projectName) {
+        Project project = null;
+        if (projectName != null && !projectName.isBlank()) {
+            int modelCount = varModel.getModelCount();
+            int modelCounter = 0;
+            Project currentProject;
+            while (project == null && modelCounter < modelCount) {
+                currentProject = varModel.getModel(modelCounter);
+                if (currentProject.getName().equals(projectName)) {
+                    project = currentProject;
+                }
+                modelCounter++;
+            }
+        }
+        return project;
+    }
+    
+    /**
      * Returns the name of the IVML project defined in the file denoted by the given model file name. This file must be
      * available in the {@link #modelDirectory}.
      * 

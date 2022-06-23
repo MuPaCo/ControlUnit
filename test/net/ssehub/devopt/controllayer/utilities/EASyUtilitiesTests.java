@@ -15,6 +15,7 @@
 package net.ssehub.devopt.controllayer.utilities;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -119,8 +120,12 @@ public class EASyUtilitiesTests {
         try {
             String ivmlModelString = getIvmlModelString(testIvmlModelFile);
             String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
+            String availableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            
             assertEquals(testIvmlProjectName, addedProjectName, "Addition of new model returned wrong project name");
             assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Added new model not loaded");
+            assertEquals(testIvmlProjectName, availableProjectName, "Added new model not available");
+            assertNotNull("New project must be available", easyUtilities.getProject(testIvmlProjectName));
         } catch (EASyUtilitiesException e) {
             fail("Addition of valid project must not cause an excpetion", e);
         }
@@ -137,8 +142,13 @@ public class EASyUtilitiesTests {
         try {
             String ivmlModelString = getIvmlModelString(testIvmlModelFile);
             String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
+            String availableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            
             assertEquals(null, addedProjectName, "Addition of erroneous model definition");
             assertEquals(null, getLoadedProjectName(testIvmlProjectName), "Erroneous model loaded");
+            assertEquals(null, availableProjectName, "Added new model not available");
+            assertNull("No new project must be available", easyUtilities.getProject(testIvmlProjectName));
+            
             // Failed addition must also ensure deleting the model file again
             File modelFileCreatedByEasy = new File(tempModelDirectory, testIvmlModelFileName);
             assertFalse(modelFileCreatedByEasy.exists(), "Missing deletion of file containng errneous model");
@@ -158,8 +168,12 @@ public class EASyUtilitiesTests {
         try {
             String ivmlModelString = getIvmlModelString(testIvmlModelFile);
             String addedProjectName = easyUtilities.addModel(ivmlModelString, testIvmlProjectName);
-            assertEquals(testIvmlProjectName, addedProjectName, "Addition of erroneous model definition");
-            assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Erroneous model loaded");
+            String availableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            
+            assertEquals(testIvmlProjectName, addedProjectName, "Addition of new model returned wrong project name");
+            assertEquals(testIvmlProjectName, getLoadedProjectName(testIvmlProjectName), "Added new model not loaded");
+            assertEquals(testIvmlProjectName, availableProjectName, "Added new model not available");
+            assertNotNull("New project must be available", easyUtilities.getProject(testIvmlProjectName)); 
         } catch (EASyUtilitiesException e) {
             fail("Addition of valid project must not cause an excpetion", e);
         }
