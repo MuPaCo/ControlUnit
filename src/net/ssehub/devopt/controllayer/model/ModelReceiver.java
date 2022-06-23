@@ -234,8 +234,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         } else {
             String modelFileName = "" + System.currentTimeMillis();
             try {
-                easyUtilities.addModel(receivedMessage, modelFileName);
-                String projectName = easyUtilities.getProjectName(modelFileName);
+                String projectName = easyUtilities.addModel(receivedMessage, modelFileName);
                 if (projectName != null) {                    
                     callback.modelReceived(modelFileName, projectName);
                 } else {
