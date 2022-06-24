@@ -18,9 +18,13 @@ project DevOpt_Description {
      * The additional constraint ensures that exactly one identification
      * description for an entity exists.
      */
+    typedef EntityDescription setOf(Description);
+    /*
+     * With restriction, adding different types of descriptions leads to not adding the model, but without errors
     typedef EntityDescription setOf(Description) with
             ((EntityDescription->
                 collect(d|d.isTypeOf(IdentificationDescription))).size() == 1);
+    */
 
     /*
      * This type defines the abstract base description type from which the
