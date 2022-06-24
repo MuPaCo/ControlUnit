@@ -65,7 +65,7 @@ public class EASyUtilitiesTests {
      * The definition of whether the DevOpt meta model was loaded as part of one of the tests in this class
      * (<code>true</code>) or not (<code>false</code>).
      */
-    private boolean metaModelLoaded = false;
+    private static boolean metaModelLoaded;
     
     /**
      * Creates the {@link #tempModelDirectory} and starts the EASy-Producer components of the {@link #easyUtilities}
@@ -73,6 +73,7 @@ public class EASyUtilitiesTests {
      */
     @BeforeClass
     public static void setup() {
+        metaModelLoaded = false;
         // Create temporal, empty model directory to start the EASy components without immediately loading models 
         tempModelDirectory = new File(AllTests.TEST_IVML_FILES_DIRECTORY, "test_" + System.currentTimeMillis());
         try {
@@ -236,6 +237,94 @@ public class EASyUtilitiesTests {
             metaModelLoaded = true;
         }
         String expectedIvmlProjectName = "MinimalDevOptProject";
+        String testIvmlProjectName = expectedIvmlProjectName;
+        String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
+        
+        try {
+            String actualAddedProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAddedProjectName, "Wrong added project");
+            
+            Configuration actualAvailableProjectConfiguration = easyUtilities.getConfiguration(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectConfiguration.getName(),
+                    "Wrong available configuration");
+            
+            Project actualAvailableProject = easyUtilities.getProject(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProject.getName(), "Wrong available project");
+            
+            String actualAvailableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectName, "Wrong available project name");
+            
+            int actualAvailableProjectCount = easyUtilities.getProjectNames().size();
+            assertEquals(expectedAvailableProjectCount, actualAvailableProjectCount,
+                    "Wrong number of available projects");
+        } catch (EASyUtilitiesException e) {
+            fail("Addition of valid project must not cause an excpetion", e);
+        }
+    }
+    
+    /**
+     * Tests whether the addition of a valid DevOpt model with identification description is successful.
+     */
+    @Test
+    public void testAddModelIdentificationDevOptProject() {
+        int expectedAvailableProjectCount = easyUtilities.getProjectNames().size() + 1;
+        if (!metaModelLoaded) {
+            /*
+             * If this is the first time a valid model based on the DevOpt meta model is loaded, it is also the first
+             * time that all meta model projects are loaded due to their import structure. Hence, the expected number
+             * of available projects after adding the desired one in this test must be increased by the number of meta
+             * model projects.  
+             */
+            expectedAvailableProjectCount = expectedAvailableProjectCount + META_MODEL_FILE_COUNT;
+            metaModelLoaded = true;
+        }
+        String expectedIvmlProjectName = "IdentificationDevOptProject";
+        String testIvmlProjectName = expectedIvmlProjectName;
+        String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
+        
+        try {
+            String actualAddedProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAddedProjectName, "Wrong added project");
+            
+            Configuration actualAvailableProjectConfiguration = easyUtilities.getConfiguration(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectConfiguration.getName(),
+                    "Wrong available configuration");
+            
+            Project actualAvailableProject = easyUtilities.getProject(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProject.getName(), "Wrong available project");
+            
+            String actualAvailableProjectName = easyUtilities.getProjectName(testIvmlProjectName);
+            assertEquals(expectedIvmlProjectName, actualAvailableProjectName, "Wrong available project name");
+            
+            int actualAvailableProjectCount = easyUtilities.getProjectNames().size();
+            assertEquals(expectedAvailableProjectCount, actualAvailableProjectCount,
+                    "Wrong number of available projects");
+        } catch (EASyUtilitiesException e) {
+            fail("Addition of valid project must not cause an excpetion", e);
+        }
+    }
+    
+    /**
+     * Tests whether the addition of a valid DevOpt model with monitoring description is successful.
+     */
+    @Test
+    public void testAddModelMonitoringDevOptProject() {
+        int expectedAvailableProjectCount = easyUtilities.getProjectNames().size() + 1;
+        if (!metaModelLoaded) {
+            /*
+             * If this is the first time a valid model based on the DevOpt meta model is loaded, it is also the first
+             * time that all meta model projects are loaded due to their import structure. Hence, the expected number
+             * of available projects after adding the desired one in this test must be increased by the number of meta
+             * model projects.  
+             */
+            expectedAvailableProjectCount = expectedAvailableProjectCount + META_MODEL_FILE_COUNT;
+            metaModelLoaded = true;
+        }
+        String expectedIvmlProjectName = "MonitoringDevOptProject";
         String testIvmlProjectName = expectedIvmlProjectName;
         String testIvmlModelFileName = testIvmlProjectName + IVML_MODEL_FILE_EXTENSION;
         File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);

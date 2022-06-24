@@ -1,0 +1,41 @@
+project MonitoringDevOptProject {
+
+    import DevOpt_System;
+    
+    Identification entityIdentification = {
+        identifier = "System under Monitoring",
+        host = "192.168.1.11",
+        port = 1883
+    };
+
+    IdentificationDescription identificationDescription = {
+        description = entityIdentification
+    };
+    
+    IntegerParameter entityPowerBalance = {
+        name = "Power Balance",
+        value = null
+    };
+    
+    RuntimeDate entityMonitoring = {
+        timestamp = null,
+        monitoringScope = "entity/monitoring/mqtt/topic@127.0.0.1:8883",
+        value = entityPowerBalance,
+        expressions = null
+    };
+    
+    RuntimeDescription runtimeDescription = {
+        description = entityMonitoring
+    };
+    
+    EntityDescription observableDescription = {
+        identificationDescription,
+        runtimeDescription
+    };
+    
+    Entity observable = {
+        name = "Observable",
+        description = observableDescription
+    };
+    
+}
