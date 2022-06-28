@@ -1,0 +1,16 @@
+project EntityEmptyIdentificationDescriptionDevOptProject {
+
+    import DevOpt_System;
+    
+    IdentificationDescription identificationDescription;
+    
+    EntityDescription observableDescription = {
+        identificationDescription
+    };
+    
+    Entity observable = {
+        name = "Observable",
+        description = observableDescription
+    };
+    
+}
