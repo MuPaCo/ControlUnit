@@ -49,6 +49,7 @@ public class ModelUtilitiesTests {
      * <ul>
      * <li>The name and extension of the IVML model file containing the IVML project definition to load</li>
      * <li>The name of the IVML project to load from the IVML model file</li>
+     * <li>The definition of whether an entity must be available (<code>true</code>) or not (<code>false</code>).</li>
      * <li>The identifier of the entity defined by the IVML project</li>
      * <li>The host (IP) of the entity defined by the IVML project</li>
      * <li>The port number of the entity defined by the IVML project</li>
