@@ -14,9 +14,11 @@
  */
 package net.ssehub.devopt.controllayer.monitoring;
 
+import net.ssehub.devopt.controllayer.model.EntityInfo;
+
 /**
  * This interface needs to be implemented by any class that needs to be informed about new monitoring data from any of
- * the registered and observed external element.
+ * the registered and observed entites.
  * 
  * @author kroeher
  *
@@ -27,9 +29,9 @@ public interface MonitoringDataReceptionCallback {
      * Receives the information about source and its (latest) runtime data as received by the
      * {@link MonitoringDataReceiver}.
      *  
-     * @param source the information about the component that created the received runtime data 
+     * @param source the information about the entity that created the received runtime data 
      * @param data the (latest) runtime data received by the source
      */
-    public abstract void monitoringDataReceived(ObservableInfo source, String data);
+    public abstract void monitoringDataReceived(EntityInfo source, String data);
     
 }

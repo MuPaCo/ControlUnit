@@ -20,6 +20,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
+import net.ssehub.devopt.controllayer.model.EntityInfoTests;
 import net.ssehub.devopt.controllayer.model.ModelReceiverMqttTests;
 import net.ssehub.devopt.controllayer.network.HttpClientCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpClientUsageTests;
@@ -51,7 +52,8 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
     MqttV3ClientCreationTests.class,
     MqttV3ClientUsageTests.class, /* These tests are unstable; see class description */
     // Model tests
-    ModelReceiverMqttTests.class
+    ModelReceiverMqttTests.class,
+    EntityInfoTests.class
     })
 
 /**

@@ -18,13 +18,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import net.ssehub.devopt.controllayer.model.EntityInfo;
 import net.ssehub.devopt.controllayer.model.ModelManager;
 
 /**
- * This class realizes the singleton receiver for monitoring/runtime data from individual components of the local layer.
- * In order to monitor these components, a valid model describing them and their properties must be available to the
- * {@link ModelManager}, which includes the necessary {@link ObservableInfo}. Hence, adding new or removing existing
- * observables (local components) is done by the {@link ModelManager}, while individual instances can register as
+ * This class realizes the singleton receiver for monitoring/runtime data from individual entities of the local layer.
+ * In order to monitor these entities, a valid model describing them and their properties must be available to the
+ * {@link ModelManager}, which includes the necessary {@link EntityInfo}. Hence, adding new or removing existing
+ * observables (local entities) is done by the {@link ModelManager}, while individual instances can register as
  * {@link MonitoringDataReceptionCallback} to receive all monitoring data.
  * 
  * @author kroeher
@@ -81,7 +82,7 @@ public class MonitoringDataReceiver {
     }
     
     // TODO write correct JavaDoc
-    public boolean addObservable(ObservableInfo observable) {
+    public boolean addObservable(EntityInfo observable) {
         /*
          * TODO Start monitoring the component represented by the information in the given ObservableInfo instance.
          * This includes:
@@ -96,7 +97,7 @@ public class MonitoringDataReceiver {
     }
     
     // TODO write correct JavaDoc
-    public boolean removeObservable(ObservableInfo observable) {
+    public boolean removeObservable(EntityInfo observable) {
         /*
          * TODO Stop monitoring the component represented by the information in the given ObservableInfo instance.
          * This includes:
@@ -115,7 +116,7 @@ public class MonitoringDataReceiver {
      * @param source the information about the component that created the monitoring data 
      * @param data the monitoring data of the source
      */
-    private void propagateMonitoringData(ObservableInfo source, String data) {
+    private void propagateMonitoringData(EntityInfo source, String data) {
         for (MonitoringDataReceptionCallback callback : callbacks) {
             callback.monitoringDataReceived(source, data);
         }
