@@ -119,7 +119,7 @@ public class ModelUtilities {
      * Returns the port number defined for the given entity.
      * 
      * @param entity the entity for which its port number should be returned
-     * @return the port number of the given entity or <code>null</code>, if the given entity is <code>null</code>, the
+     * @return the port number of the given entity or <code>-1</code>, if the given entity is <code>null</code>, the
      *         given entity is not of type {@link #TYPE_ENTITY}, or no such definition is available
      * @see #getEntity(Configuration)
      */
