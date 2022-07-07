@@ -18,8 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.List;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -28,6 +26,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import net.ssehub.devopt.controllayer.AbstractEASyBasedTests;
 import net.ssehub.devopt.controllayer.AllTests;
 import net.ssehub.easy.varModel.confModel.Configuration;
 import net.ssehub.easy.varModel.confModel.IDecisionVariable;
@@ -39,7 +38,7 @@ import net.ssehub.easy.varModel.confModel.IDecisionVariable;
  *
  */
 @RunWith(Parameterized.class)
-public class ModelUtilitiesTests {
+public class ModelUtilitiesTests extends AbstractEASyBasedTests {
 
     /**
      * The set of test value sets used to execute the tests in this class. Each subset is input to the constructor of
@@ -75,25 +74,6 @@ public class ModelUtilitiesTests {
      * The local reference to the global {@link EASyUtilities}.
      */
     private static EASyUtilities easyUtilities = EASyUtilities.INSTANCE;
-    
-    /**
-     * The file denoting an initially empty directory as temporal model directory to start the EASy-Producer components
-     * without immediately loading models at start-up. The individual tests in this class may add models to that
-     * directory via the {@link #easyUtilities}-
-     */
-    private static File tempModelDirectory;
-    
-    /**
-     * The name of the test IVML model file loaded during the previous test iteration. The initial value is
-     * <code>null</code>.
-     */
-    private static String previousTestIvmlModelFileName;
-    
-    /**
-     * The name of the test IVML project loaded during the previous test iteration. The initial value is
-     * <code>null</code>.
-     */
-    private static String previousTestIvmlProjectName;
     
     /**
      * The local reference to the global {@link ModelUtilities}.
@@ -150,21 +130,12 @@ public class ModelUtilitiesTests {
     public ModelUtilitiesTests(String testIvmlModelFileName, String testIvmlProjectName,
             boolean expectedEntityAvailable, String expectedEntityIdentifier, String expectedEntityHost,
             int expectedEntityPort, String expectedEntityMonitoringScope) {
-        // Add model only, if it was not added before (multiple additions due to parameterization causes exceptions)
-        if (testIvmlModelFileName != null && testIvmlProjectName != null
-                && !testIvmlModelFileName.equals(previousTestIvmlModelFileName)
-                && !testIvmlProjectName.equals(previousTestIvmlProjectName)) {
-            File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
-            String testIvmlModelString = getIvmlModelString(testIvmlModelFile);
-            try {
-                testIvmlProjectName = easyUtilities.addModel(testIvmlModelString, testIvmlProjectName);
-                previousTestIvmlModelFileName = testIvmlModelFileName;
-                previousTestIvmlProjectName = testIvmlProjectName;
-            } catch (EASyUtilitiesException e) {
-                fail("Retrieving configuration for IVML model file \"" + testIvmlModelFileName + "\"failed", e);
-            }
+        File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
+        try {
+            testIvmlProjectConfiguration = easyUtilities.loadConfiguration(testIvmlModelFile);
+        } catch (EASyUtilitiesException e) {
+            fail("Unexpected error while loading configuration from \"" + testIvmlModelFile + "\"", e);
         }
-        testIvmlProjectConfiguration = easyUtilities.getConfiguration(previousTestIvmlProjectName);
         this.expectedEntityAvailable = expectedEntityAvailable;
         this.expectedEntityIdentifier = expectedEntityIdentifier;
         this.expectedEntityHost = expectedEntityHost;
@@ -174,68 +145,36 @@ public class ModelUtilitiesTests {
     //checkstyle: resume parameter number check
     
     /**
-     * Reads the content of the given file and returns it as a single string using {@link System#lineSeparator()} to
-     * concatenate individual file lines.
-     * 
-     * @param ivmlModelFile the file to read to content from
-     * @return the content of the given file or <code>null</code>, if reading the content fails
-     */
-    private String getIvmlModelString(File ivmlModelFile) {
-        String ivmlModelString = null;
-        List<String> testIvmlFileLines;
-        try {
-            testIvmlFileLines = FileUtilities.INSTANCE.readFile(ivmlModelFile);
-            StringBuilder ivmlModelStringBuilder = new StringBuilder();
-            for (String testIvmlFileLine : testIvmlFileLines) {
-                ivmlModelStringBuilder.append(testIvmlFileLine);
-                ivmlModelStringBuilder.append(System.lineSeparator());
-            }
-            ivmlModelString = ivmlModelStringBuilder.toString();
-        } catch (FileUtilitiesException e) {
-            e.printStackTrace();
-        }
-        return ivmlModelString;
-    }
-    
-    /**
-     * Creates the {@link #tempModelDirectory} and starts the EASy-Producer components of the {@link #easyUtilities}
-     * using that directory as model directory.
+     * Starts the necessary EASy-Producer components via {@link AbstractEASyBasedTests#setup()} before adding the
+     * {@link AllTests#TEST_IVML_FILES_DIRECTORY} as model location to ensure the availability of all test IVML model
+     * files of that directory.
      */
     @BeforeClass
     public static void setup() {
-        // Create temporal, empty model directory to start the EASy components without immediately loading models 
-        tempModelDirectory = new File(AllTests.TEST_IVML_FILES_DIRECTORY, "test_" + System.currentTimeMillis());
+        // Start EASy components
+        AbstractEASyBasedTests.setup();
+        // Add IVML test files directory as common model location
         try {
-            tempModelDirectory = FileUtilities.INSTANCE.createDirectory(tempModelDirectory.getAbsolutePath());
-        } catch (FileUtilitiesException e) {
-            fail(e);
-        }
-        // Start the EASy components using the canonical path to the model directory created above
-        try {
-            easyUtilities.startEASyComponents(tempModelDirectory.getCanonicalPath());
-        } catch (IOException | EASyUtilitiesException e) {
-            fail(e);
+            easyUtilities.addModelLocation(AllTests.TEST_IVML_FILES_DIRECTORY);
+        } catch (EASyUtilitiesException e) {
+            fail("Unexpected error while adding model location", e);
         }
     }
     
     /**
-     * Stops the EASy-Producer components of the {@link #easyUtilities} and deletes the {@link #tempModelDirectory} 
-     * including its content created during the tests in this class.
+     * Removes the {@link AllTests#TEST_IVML_FILES_DIRECTORY} as model location from the EASy-Producer components before
+     * stopping these components via {@link AbstractEASyBasedTests#teardown()}.
      */
     @AfterClass
     public static void teardown() {
-        // Stop the EASy components
+        // Remove IVML test files directory as common model location
         try {
-            easyUtilities.stopEASyComponents();
+            easyUtilities.removeModelLocation(AllTests.TEST_IVML_FILES_DIRECTORY);
         } catch (EASyUtilitiesException e) {
-            fail(e);
+            fail("Unexpected error while removing model location", e);
         }
-        // Delete the temporal model directory and all its content used for the tests in this class only
-        try {
-            FileUtilities.INSTANCE.delete(tempModelDirectory);
-        } catch (FileUtilitiesException e) {
-            fail(e);
-        }
+        // Stop EASy components
+        AbstractEASyBasedTests.teardown();
     }
     
     /**

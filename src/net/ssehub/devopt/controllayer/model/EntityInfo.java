@@ -37,6 +37,11 @@ public class EntityInfo {
      * The local reference to the global {@link ModelUtilities}.
      */
     private ModelUtilities modelUtilities = ModelUtilities.INSTANCE;
+    
+    /**
+     * The path to the source file of the {@link Configuration} used to create this instance.
+     */
+    private String sourceFilePath;
 
     /**
      * The identifier of the entity as defined by its IVML configuration.
@@ -71,6 +76,21 @@ public class EntityInfo {
      * monitoring data to.
      */
     private String monitoringChannel;
+    
+    /**
+     * Constructs a new {@link EntityInfo} instance containing the information of the entity defined by the given
+     * configuration and the given string denoting the path to the source file of that configuration.
+     * 
+     * @param configuration the IVML model configuration defining the entity for which this instance should be created;
+     *        the caller of this constructor must ensure that the configuration is not <code>null</code>
+     * @param sourceFilePath the path to the source file of the given configuration
+     * @throws ModelException if entity information is not defined by the given configuration or retrieving that
+     *         information from the given configuration fails 
+     */
+    public EntityInfo(Configuration configuration, String sourceFilePath) throws ModelException {
+        this.sourceFilePath = sourceFilePath;
+        setAttributeValues(configuration);
+    }
     
     /**
      * Constructs a new {@link EntityInfo} instance containing the information of the entity defined by the given
@@ -179,6 +199,15 @@ public class EntityInfo {
     }
     
     /**
+     * Returns string denoting the path to the source file of the {@link Configuration} used to create this instance.
+     * 
+     * @return the path to the source file or <code>null</code>, if no source file is known for this instance
+     */
+    public String getSourceFilePath() {
+        return sourceFilePath;
+    }
+    
+    /**
      * Returns the identifier of the entity represented by this instance. The identifier is defined in the IVML
      * configuration for that entity.
      * 
@@ -241,6 +270,36 @@ public class EntityInfo {
         return monitoringChannel;
     }
     
+    /**
+     * Checks whether the given {@link EntityInfo} instance is equal to this one. Two instances are equal, if their
+     * string representation provided by {@link #toString()} is equal.
+     * 
+     * @param other the other instance to compare with this one for equality
+     * @return <code>true</code>, if the given instance is equal to this one; <code>false</code> otherwise
+     */
+    public boolean equals(EntityInfo other) {
+        boolean isEqual = false;
+        if (other != null) {
+            isEqual = this.toString().equals(other.toString());
+        }
+        return isEqual;
+    }
+    
+    /**
+     * Returns a custom string representation of this instance. This representation contains:
+     * <ul>
+     * <li>The identifier of this class</li>
+     * <li>The identifier of the entity represented by this instance</li>
+     * <li>The host (URL) of the entity represented by this instance</li>
+     * <li>The port number of the entity represented by this instance</li>
+     * <li>The URL of the monitoring scope  of the entity represented by this instance</li>
+     * <li>The port number of the monitoring scope of the entity represented by this instance</li>
+     * <li>The channel (MQTT topic name or HTTP server context name) of the monitoring scope  of the entity represented
+     *     by this instance</li>
+     * </ul>
+     * 
+     * @return the custom string representation of this instance
+     */
     @Override
     public String toString() {
         String[][] observableInfo = {

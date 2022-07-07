@@ -63,7 +63,7 @@ public class Controller {
          * methods.
          */
         try {
-            EASyUtilities.INSTANCE.startEASyComponents(setup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY));
+            EASyUtilities.INSTANCE.startEASyComponents();
         } catch (EASyUtilitiesException e) {
             logger.logException(ID, e);
             System.exit(1);
@@ -73,7 +73,8 @@ public class Controller {
          * components started above.
          */
         try {
-            modelManager = new ModelManager(setup);
+            ModelManager.setUp(setup);
+            modelManager = ModelManager.getInstance();
             modelManager.run();
         } catch (ModelException e) {
             logger.logException(ID, e);
@@ -159,7 +160,7 @@ public class Controller {
      * @param args the supplied command-line arguments
      */
     public static void main(String[] args) {
-        new Controller(args); 
+        new Controller(args);        
     }
 
 }

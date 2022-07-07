@@ -15,5 +15,7 @@
 	<classpathentry kind="lib" path="libs/EASyCommandLine.jar"/>
 	<classpathentry kind="lib" path="libs/easy-headless.jar"/>
 	<classpathentry kind="lib" path="libs/eclipse-part.jar"/>
+	<classpathentry kind="lib" path="model"/>
+	<classpathentry kind="lib" path="res"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

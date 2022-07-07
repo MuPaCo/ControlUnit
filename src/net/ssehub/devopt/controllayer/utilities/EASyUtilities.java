@@ -15,14 +15,11 @@
 package net.ssehub.devopt.controllayer.utilities;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import de.uni_hildesheim.sse.easy.loader.ListLoader;
-import net.ssehub.devopt.controllayer.utilities.FileUtilities.WriteOption;
 import net.ssehub.easy.basics.modelManagement.AvailableModels;
 import net.ssehub.easy.basics.modelManagement.ModelInfo;
 import net.ssehub.easy.basics.modelManagement.ModelManagementException;
@@ -34,33 +31,9 @@ import net.ssehub.easy.varModel.confModel.Configuration;
 import net.ssehub.easy.varModel.management.VarModel;
 import net.ssehub.easy.varModel.model.Project;
 
-/*
- * TODO Loading internal files must be re-implemented
- * 
- * As it is, the EASyUtilties loads the EASy components based on the .easy-producer file and the DevOpt meta-model as a
- * prerequisite to resolve imports of received models of the local elements.
- * 
- * However, this does not work in an executable jar-File, because then we cannot use File-objects, but need to load
- * these jar-internal resources. In turn, this breaks the current implementation:
- * 
- * - For the .easy-producer file: it must be a File-object due to the ListLoader(EASY_STARTUP_FILE) in
- *   startEASyComponents
- * - For the meta-model: there is currently the assumption that these files are loaded prior to any received external
- *   models, which is not completely correct. Loading the meta-model and loading additional models must be decoupled
- *   completely to use the internal model directory for the meta-model once, and the externally defined directory for
- *   received models independently. However, for the latter again resources instead of files must be used, which is
- *   questionable with respect to the EASy components.
- *   
- * For now, we package the executable jar with all files and directory necessary for its proper execution. Hence, the
- * configuration option for the model directory must always be the directory in that package. Changing that path must
- * include copying the meta-model files to that directory as well.
- * 
- */
-
 /**
- * This class provides thread-safe access to the standalone version of EASy-Producer. In particular, the methods of this
- * class provide access to the modeling and reasoning capabilities of EASy-Producer as well as additional utilities to
- * simplify working with data elements, like IVML models or the reasoner. 
+ * This class provides thread-safe access to the stand-alone version of EASy-Producer. In particular, the methods of
+ * this class provide access to the model management and reasoning capabilities.
  * 
  * @author kroeher
  *
@@ -78,24 +51,9 @@ public class EASyUtilities {
     private static final String ID = EASyUtilities.class.getSimpleName();
     
     /**
-     * The start-up file required to load the EASy-Producer components.
-     */
-    private static final File EASY_STARTUP_FILE = new File(".easy-producer");
-    
-    /**
      * The {@link ProgressObserver} used to track the progress of EASy-Producer tasks.
      */
     private static final ProgressObserver EASY_PROGRESS_OBSERVER = ProgressObserver.NO_OBSERVER;
-    
-    /**
-     * The directory in which the DevOpt meta model (IVML) files are located.
-     */
-    private static final File DEVOPT_META_MODEL_DIRECTORY = new File("./model");
-    
-    /**
-     * The directory containing the model (IVML) files of registered elements.
-     */
-    private File modelDirectory;
     
     /**
      * The loader for the EASy-Producer components.
@@ -103,14 +61,13 @@ public class EASyUtilities {
     private ListLoader easyLoader;
     
     /**
-     * The local reference to the global {@link VarModel}.
+     * The local reference to the global {@link VarModel} of EASy-Producer.
      */
     private VarModel varModel;
     
     /**
      * The definition of whether the EASy-Producer components are loaded (<code>true</code>) or not
-     * (<code>false</code>). This includes the successful loading of the DevOpt meta model and those models available in
-     * the {@link #modelDirectory}.
+     * (<code>false</code>). This includes the successful loading of the DevOpt meta model.
      */
     private boolean easyComponentsLoaded;
     
@@ -127,130 +84,79 @@ public class EASyUtilities {
     }
     
     /**
-     * Starts the components of EASy-Producer, loads the DevOpt meta model as well as all models located in the 
-     * directory denoted by the given path. This method must be called exactly once before this instance is used the
-     * first time. Calling this method multiple times without stopping the components in between has no effect.
-     *  
-     * @param modelDirectoryPath the path to the directory in which the IVML models are saved; must not be
-     *        <code>null</code> and always an existing directory
-     * @throws EASyUtilitiesException if loading the EASy-Producer components or loading the models fails
+     * Starts the components of EASy-Producer, defines the {@link #varModel} reference, and adds the DevOpt meta model
+     * directory as model location to the {@link #varModel}. This method must be called exactly once before this
+     * instance is used the first time. Calling this method multiple times without stopping the components in between
+     * has no effect.
+     *
+     * @throws EASyUtilitiesException if starting the components, adding the directory, or retrieving necessary
+     *                                information for these tasks fails
      * @see #stopEASyComponents()
      */
-    public void startEASyComponents(String modelDirectoryPath) throws EASyUtilitiesException {
-        if (!easyComponentsLoaded) {            
-            try {
-                easyLoader = new ListLoader(EASY_STARTUP_FILE);
-                easyLoader.startup();
-            } catch (IOException e) {
-                throw new EASyUtilitiesException("Loading EASy-Producer components failed", e);
+    public void startEASyComponents() throws EASyUtilitiesException {        
+        if (!easyComponentsLoaded) {
+            // Retrieve class loader for identifying EASy-Producer startup file and DevOpt meta model resources
+            Class<?> thisClass = this.getClass();
+            ClassLoader thisClassLoader = null;
+            try {                
+                thisClassLoader = thisClass.getClassLoader();
+            } catch (SecurityException e) {
+                throw new EASyUtilitiesException("Retrieving class loader for resource identification failed", e);
             }
-            varModel = VarModel.INSTANCE;
-            // Load the meta model as part of start-up; otherwise loading any models relying on it will fail 
-            try {
-                varModel.locations().addLocation(DEVOPT_META_MODEL_DIRECTORY, EASY_PROGRESS_OBSERVER);
-            } catch (ModelManagementException e) {
-                throw new EASyUtilitiesException("Loading DevOpt meta model from \"" + DEVOPT_META_MODEL_DIRECTORY 
-                        + "\" failed", e);
-            }
-            // Load already known models from model directory specified in the configuration file
-            addModelDirectory(modelDirectoryPath);
-            easyComponentsLoaded = true;
-            
-            // Some debug logging information 
-            logger.logDebug(ID, "EASy-Producer components started");
-            List<String> loadedProjects = getProjectNames();
-            if (loadedProjects.size() == 0) {
-                logger.logDebug(ID, "Loaded models: <none>");
-            } else {
-                logger.logDebug(ID, StringUtilities.INSTANCE.prepend("Loaded models:", loadedProjects));
-            }
-        }
-    }
-    
-    /**
-     * Adds the directory denoted by the given path as a model location to the {@link #varModel}. Further, a successful
-     * addition of this directory triggers loading the individual model (IVML) files in that directory.
-     * 
-     * @param modelDirectoryPath the path to the directory in which the IVML models are saved; must not be
-     *        <code>null</code> and always an existing directory
-     * @throws EASyUtilitiesException if adding the directory or loading the models fails
-     * @see {@link #loadModels(File)}
-     */
-    private void addModelDirectory(String modelDirectoryPath) throws EASyUtilitiesException {
-        modelDirectory = new File(modelDirectoryPath);
-        try {
-            varModel.locations().addLocation(modelDirectory, EASY_PROGRESS_OBSERVER);
-            loadModels(modelDirectory);
-        } catch (ModelManagementException e) {
-            throw new EASyUtilitiesException("Adding IVML model directory \"" + modelDirectory.getAbsolutePath()
-                    + "\" failed", e);
-        }
-    }
-    
-    /**
-     * Loads all model (IVML) files in the given directory. This method applies a file name filter reducing the set of
-     * files to be considered to those having a file name, which ends with the <code>*.ivml</code>-extension.
-     * 
-     * @param modelDirectory the directory in which the IVML models are saved; must not be <code>null</code> and always
-     *        an existing directory
-     * @throws EASyUtilitiesException if loading a model file in the given directory fails
-     */
-    private void loadModels(File modelDirectory) throws EASyUtilitiesException {
-        File[] modelFiles = modelDirectory.listFiles(new FilenameFilter() {
-            
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".ivml");
-            }
-        });
-        
-        if (modelFiles != null) {
-            File modelFile;
-            String projectName;
-            for (int i = 0; i < modelFiles.length; i++) {
-                modelFile = modelFiles[i];
+            if (thisClassLoader != null) {
+                File resourceFile;
+                // Start EASy-Producer components using the respective startup file resource
                 try {
-                    // TODO should be more elegant to avoid "." within paths to match correct URI in varModel
-                    modelFile = new File(modelFile.getCanonicalPath());
-                    projectName = getProjectName(modelFile.toURI());
-                    if (projectName != null) {                    
-                        List<ModelInfo<Project>> models = varModel.availableModels().getModelInfo(projectName);
-                        if (models != null) {                        
-                            try {
-                                varModel.load(models.get(0));
-                            } catch (ModelManagementException e) {
-                                throw new EASyUtilitiesException("Loading model file \"" + modelFile + "\" failed", e);
-                            }
-                        }
-                    }
-                } catch (IOException e) {
-                    throw new EASyUtilitiesException("Creating canonical path for model loading failed", e);
+                    resourceFile = new File(thisClassLoader.getResource(".easy-producer").toURI());
+                    easyLoader = new ListLoader(resourceFile);
+                    easyLoader.startup();
+                } catch (NullPointerException | URISyntaxException | IllegalArgumentException | IOException e) {
+                    throw new EASyUtilitiesException("Loading EASy-Producer components failed", e);
                 }
+                // If starting EASy-Producer components was successful, set reference to its variability model and...
+                varModel = VarModel.INSTANCE;
+                // ... add DevOpt meta model directory as model location to the EASy-Producer variability model
+                try {
+                    resourceFile = new File(thisClassLoader.getResource("DevOpt_System.ivml").toURI());
+                    if (!addModelLocation(resourceFile.getParentFile())) {
+                        throw new EASyUtilitiesException("Adding internal DevOpt meta model location \""
+                                + resourceFile.getParentFile() + "\" failed");
+                    }
+                } catch (NullPointerException | URISyntaxException | IllegalArgumentException
+                        | EASyUtilitiesException e) {
+                    throw new EASyUtilitiesException("Adding DevOpt meta model directory failed", e);
+                }
+                // Track successful loading
+                easyComponentsLoaded = true;
+                logger.logDebug(ID, "EASy-Producer components started");
+            } else {
+                throw new EASyUtilitiesException("No EASyUtilities class loader for resource identification available");
             }
         }
     }
     
     /**
-     * Stops the components of EASy-Producer and removes the DevOpt meta model directory as well as the
-     * {@link #modelDirectory} from the {@link #varModel}. This method must be called exactly once after this instance
-     * is used the last time. Calling this method multiple times without starting the components in between has no
-     * effect.
+     * Removes all model locations from the {@link #varModel} (including the DevOpt meta model directory)  and stops the
+     * components of EASy-Producer. This method must be called exactly once after this instance is used the last time.
+     * Calling this method multiple times without starting the components in between has no effect.
      * 
-     * @throws EASyUtilitiesException if removing the model directories fails
-     * @see #startEASyComponents(String)
+     * @throws EASyUtilitiesException if removing a model location fails
+     * @see #startEASyComponents()
      */
     public void stopEASyComponents() throws EASyUtilitiesException {
         if (easyComponentsLoaded) {
-            // Unload already known models from model directory specified in the configuration file
-            removeModelDirectory(modelDirectory.getAbsolutePath());
-            // Unload the meta model as part of tear-down after the models relying on it are removed
             try {
-                varModel.locations().removeLocation(DEVOPT_META_MODEL_DIRECTORY, EASY_PROGRESS_OBSERVER);
-            } catch (ModelManagementException e) {
-                throw new EASyUtilitiesException("Unloading DevOpt meta model from \"" + DEVOPT_META_MODEL_DIRECTORY 
-                        + "\" failed", e);
+                // Remove all model locations before actual shutdown
+                File[] locationFiles = new File [varModel.locations().getLocationCount()];
+                for (int i = 0; i < locationFiles.length; i++) {
+                    locationFiles[i] = varModel.locations().getLocation(i).getLocation();
+                }
+                for (int i = 0; i < locationFiles.length; i++) {
+                    removeModelLocation(locationFiles[i]);
+                }
+            } catch (EASyUtilitiesException e) {
+                throw new EASyUtilitiesException("Removing model locations failed", e);
             }
-            // Finally, shutdown the EASy-Producer components
             easyLoader.shutdown();
             easyComponentsLoaded = false;
             logger.logDebug(ID, "EASy-Producer components stopped");
@@ -258,272 +164,238 @@ public class EASyUtilities {
     }
     
     /**
-     * Removes the directory denoted by the given path as a model location from the {@link #varModel}.
+     * Checks whether the given file denotes a directory previously added as model location to this instance.
      * 
-     * @param modelDirectoryPath the path to the directory in which the IVML models are saved; must not be
-     *        <code>null</code> and always an existing directory
-     * @throws EASyUtilitiesException if removing the directory fails
-     * @see {@link #loadModels(File)}
+     * @param modelLocationFile the file (directory) to check for being known as model location
+     * @return <code>true</code>, if the given file is known as model location; <code>false</code> otherwise, which
+     *         includes that the given file is <code>null</code>, it does not exist, or is not a directory
      */
-    private void removeModelDirectory(String modelDirectoryPath) throws EASyUtilitiesException {
-        File modelDirectory = new File(modelDirectoryPath);
-        try {
-            unloadModels(modelDirectory);
-            varModel.locations().removeLocation(modelDirectory, EASY_PROGRESS_OBSERVER);
-        } catch (ModelManagementException e) {
-            throw new EASyUtilitiesException("Removing IVML model directory \"" + modelDirectory.getAbsolutePath()
-                    + "\" failed", e);
-        }
-    }
-    
-    /**
-     * Unloads all model (IVML) files in the given directory. This method applies a file name filter reducing the set of
-     * files to be considered to those having a file name, which ends with the <code>*.ivml</code>-extension.
-     * 
-     * @param modelDirectory the directory in which the IVML models are saved; must not be <code>null</code> and always
-     *        an existing directory
-     * @throws EASyUtilitiesException if unloading a model file in the given directory fails
-     */
-    private void unloadModels(File modelDirectory) throws EASyUtilitiesException {
-        File[] modelFiles = modelDirectory.listFiles(new FilenameFilter() {
-            
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".ivml");
-            }
-        });
-        
-        if (modelFiles != null) {
-            File modelFile;
-            String projectName;
-            for (int i = 0; i < modelFiles.length; i++) {
-                modelFile = modelFiles[i];
-                try {
-                    // TODO should be more elegant to avoid "." within paths to match correct URI in varModel
-                    modelFile = new File(modelFile.getCanonicalPath());
-                    projectName = getProjectName(modelFile.toURI());
-                    if (projectName != null) {
-                        removeModel(projectName);
+    public synchronized boolean isModelLocationKnown(File modelLocationFile) {
+        boolean modelLocationKnown = false;
+        if (isValid(modelLocationFile)) {
+            // Model locations are never null; safe direct call of getLocationCount() and others here
+            int locationCount = varModel.locations().getLocationCount();
+            int locationCounter = 0;
+            while (!modelLocationKnown && locationCounter < locationCount) {
+                try {                
+                    if (varModel.locations().getLocation(locationCounter).getLocation().getCanonicalPath()
+                            .equals(modelLocationFile.getCanonicalPath())) {
+                        modelLocationKnown = true;
                     }
                 } catch (IOException e) {
-                    throw new EASyUtilitiesException("Creating canonical path for model unloading failed", e);
+                    logger.logException(ID, e);
                 }
+                locationCounter++;
             }
         }
+        return modelLocationKnown;
     }
     
     /**
-     * Adds the given model to the {@link #varModel}. For this purpose, this method first creates a new model file in
-     * the {@link #modelDirectory} with the given model file name and writes the given model to that file. Second, it
-     * reloads the EASy-Producer components to consider these changes.
+     * Adds the given file as IVML model location to this instance. An IVML model location is a directory, which
+     * contains IVML model files currently, or will contain some in future. Any sub-directories in the directory denoted
+     * by the given file will also be considered as IVML model locations.
      * 
-     * @param model the {@link String} representing a complete IVML model
-     * @param modelFileName the name of the model (IVML) file to write the give model to; the correct file extension
-     *        will be added to this file name automatically by this method
-     * @return the name of the IVML project as defined in the given model or <code>null</code>, if loading the model
-     *         fails
-     * @throws EASyUtilitiesException if the given model or the given model file name are either <code>null</code> or
-     *         empty; adding (loading) the model unsuccessfully results in a return value of <code>null</code> as
-     *         described above
+     * @param modelLocationFile the file to add as IVML model location
+     * @return <code>true</code>, if adding the given file as model location was successful; <code>false</code>
+     *         otherwise, which includes that the given file is already known as model location or that file is 
+     *         <code>null</code>, it does not exist, or it is not a directory
+     * @throws EASyUtilitiesException if adding the location fails unexpectedly
      */
-    public synchronized String addModel(String model, String modelFileName) throws EASyUtilitiesException {
-        logger.logDebug(ID, "Adding new model file \"" + modelFileName + "\"");
-        String addedProjectName = null;
-        if (model != null && model.length() > 0) {
-            if (modelFileName != null && !modelFileName.isBlank()) {
-                modelFileName = modelFileName + ".ivml";
-                try {
-                    FileUtilities.INSTANCE.writeFile(modelDirectory.getAbsolutePath(), modelFileName, model,
-                            WriteOption.CREATE);
-                    removeModelDirectory(modelDirectory.getAbsolutePath());
-                    addModelDirectory(modelDirectory.getAbsolutePath());
-                    addedProjectName = getProjectName(modelDirectory, modelFileName);
-                    if (addedProjectName == null) {
-                        // The model file was created, but the addition of the model failed: delete the model file again
-                        FileUtilities.INSTANCE.delete(new File(modelDirectory, modelFileName));
-                    } else if (!isValid(addedProjectName)) {
-                        /*
-                         * The model file creation and its addition was successful, but the model is not valid:
-                         *   - Remove the model again
-                         *   - Delete the model file again
-                         *   - Reload model pool
-                         */
-                        removeModel(addedProjectName);
-                        FileUtilities.INSTANCE.delete(new File(modelDirectory, modelFileName));
-                        removeModelDirectory(modelDirectory.getAbsolutePath());
-                        addModelDirectory(modelDirectory.getAbsolutePath());
-                        addedProjectName = null;
-                    }
-                } catch (FileUtilitiesException e) {
-                    throw new EASyUtilitiesException("Adding model file \"" + modelFileName + "\" failed", e);
-                }
-            } else {
-                throw new EASyUtilitiesException("Adding a model without a model file name is not supported");
-            }
-        } else {
-            throw new EASyUtilitiesException("Adding an empty model is not supported");
-        }
-        return addedProjectName;
-    }
-    
-    /**
-     * Removes the IVML {@link Project} denoted by the given name from the {@link #varModel}.
-     * 
-     * @param projectName the name of the IVML project to remove
-     * @throws EASyUtilitiesException if the given project name denotes an unknown model or unloading the model fails.
-     */
-    public synchronized void removeModel(String projectName) throws EASyUtilitiesException {
-        Project project = getProject(projectName);
-        if (project != null) {
+    public synchronized boolean addModelLocation(File modelLocationFile) throws EASyUtilitiesException {
+        boolean modelLocationAdded = false;
+        if (!isModelLocationKnown(modelLocationFile) && isValid(modelLocationFile)) {
             try {
-                varModel.unload(project, ProgressObserver.NO_OBSERVER);
+                // Model locations are never null; safe direct call of addLocation() here
+                if (varModel.locations().addLocation(modelLocationFile, EASY_PROGRESS_OBSERVER) != null) {
+                    modelLocationAdded = true;
+                }
             } catch (ModelManagementException e) {
-                throw new EASyUtilitiesException("Removing model \"" + projectName + "\" failed", e);
+                throw new EASyUtilitiesException("Adding model location \"" + modelLocationFile.getAbsolutePath()
+                        + "\" failed", e);
             }
-        } else {
-            throw new EASyUtilitiesException("Removing unknown model \"" + projectName + "\" is not possible");
         }
+        return modelLocationAdded;
     }
     
     /**
-     * Checks the {@link Configuration} based on the {@link Project} with the given project name for having conflicts
-     * using the IVML reasoner provided by the EASy-Producer components.
+     * Updates the IVML model location denoted by the given file. If the content of the model location changes, e.g., by
+     * changes to individual files, their addition, or removal, this instance needs to update its internal model states
+     * accordingly. Hence, this method must be called to ensure consistency between runtime data of this instance and
+     * the persisted one.  
      * 
-     * @param projectName the name of the project to convert to a configuration for checking for potential conflicts in
-     *        its definition
-     * @return <code>true</code>, if there are no conflicts; <code>false</code> otherwise, including the situation that
-     *         no such project is known or the given name is <code>null</code> or <i>blank</i>
+     * @param modelLocationFile the file denoting the IVML model location to update
+     * @return <code>true</code>, if updating the model location denoted by the given file was successful;
+     *         <code>false</code> otherwise, which includes that the location denoted by the given file is not known as
+     *         model location
+     * @throws EASyUtilitiesException if updating the location fails unexpectedly 
      */
-    private boolean isValid(String projectName) {
-        boolean isValid = false;
-        Configuration projectConfiguration = getConfiguration(projectName);
-        if (projectConfiguration != null) {
-            ReasonerConfiguration reasonerConfiguration = new ReasonerConfiguration();
-            try {                
-                ReasoningResult reasoningResult = ReasonerFrontend.getInstance()
-                        .propagate(projectConfiguration, reasonerConfiguration, ProgressObserver.NO_OBSERVER);
-                isValid = !reasoningResult.hasConflict();
-            } catch (NullPointerException e) {
-                // Not documented, but was thrown by some tests
-                logger.logException(ID, e);
+    public synchronized boolean updateModelLocation(File modelLocationFile) throws EASyUtilitiesException {
+        boolean modelLocationUpdated = false;
+        if (isModelLocationKnown(modelLocationFile)) {
+            try {
+                // Model locations are never null; safe direct call of updateLocation() here
+                varModel.locations().updateLocation(modelLocationFile, EASY_PROGRESS_OBSERVER);
+                modelLocationUpdated = true;
+            } catch (ModelManagementException e) {
+                throw new EASyUtilitiesException("Updating model location \"" + modelLocationFile.getAbsolutePath()
+                        + "\" failed", e);
             }
+        }
+        return modelLocationUpdated;
+    }
+    
+    /**
+     * Removes the IVML model location denoted by the given file.
+     * 
+     * @param modelLocationFile the file denoting the IVML model location to remove
+     * @return <code>true</code>, if removing the model location denoted by the given file was successful;
+     *         <code>false</code> otherwise, which includes that the location denoted by the given file is not known as
+     *         model location
+     * @throws EASyUtilitiesException if removing the location fails unexpectedly
+     */
+    public synchronized boolean removeModelLocation(File modelLocationFile) throws EASyUtilitiesException {
+        boolean modelLocationRemoved = false;
+        if (isModelLocationKnown(modelLocationFile)) {
+            try {
+                // Model locations are never null; safe direct call of removeLocation() here
+                varModel.locations().removeLocation(modelLocationFile, EASY_PROGRESS_OBSERVER);
+                modelLocationRemoved = true;
+            } catch (ModelManagementException e) {
+                throw new EASyUtilitiesException("Removing model location \"" + modelLocationFile.getAbsolutePath()
+                        + "\" failed", e);
+            }
+        }
+        return modelLocationRemoved;
+    }
+    
+    /**
+     * Checks whether the given file denotes a valid IVML model location. A file is considered valid, if it is not
+     * <code>null</code>, it exists, and it is a directory.
+     * 
+     * @param modelLocationFile the file to check
+     * @return <code>true</code>, if the given file is a valid IVML model location; <code>false</code> otherwise
+     */
+    private boolean isValid(File modelLocationFile) {
+        boolean isValid = false;
+        if (modelLocationFile != null && modelLocationFile.exists() && modelLocationFile.isDirectory()) {
+            isValid = true;
         }
         return isValid;
     }
     
     /**
-     * Retrieves the {@link Project} with the given name and converts it into a {@link Configuration} of that project.
+     * Loads the {@link Configuration} of the IVML model (project) defined in the given IVML file. For successful
+     * loading, the given file must be located in one of the IVML model locations known to this instance. If this not
+     * the case, loading will fail due to missing model information.
      * 
-     * @param projectName the name of the project to search for
-     * @return the {@link Configuration} based on the retrieved project or <code>null</code>, if no such project is
-     *         known or the given name is <code>null</code> or <i>blank</i>
+     * @param ivmlFile the file containing the IVML model (project) definition to use for configuration loading
+     * @return the loaded {@link Configuration} or <code>null</code>, if loading fails
+     * @throws EASyUtilitiesException if the given file is invalid (<code>null</code>, does not exist, is not a file) or
+     *         the loading process fails to retrieve required model information 
      */
-    public synchronized Configuration getConfiguration(String projectName) {
+    public synchronized Configuration loadConfiguration(File ivmlFile) throws EASyUtilitiesException {
+        if (ivmlFile == null) {
+            throw new EASyUtilitiesException("Source IVML file is \"null\"");
+        }
+        if (!ivmlFile.isFile()) {
+            throw new EASyUtilitiesException("Source IVML file \"" + ivmlFile.getAbsolutePath() + "\" is not a file");
+        }
+        if (!ivmlFile.exists()) {
+            throw new EASyUtilitiesException("Source IVML file \"" + ivmlFile.getAbsolutePath() + "\" does not exist");
+        }
+        
+        logger.logDebug(ID, "Adding project from file \"" + ivmlFile.getAbsolutePath()  + "\"");
         Configuration configuration = null;
-        Project project = getProject(projectName);
-        if (project != null) {
-            configuration = new Configuration(project);
+        try {
+            ivmlFile = new File(ivmlFile.getCanonicalPath()); // Avoid "." within path to match correct URI in varModel
+            AvailableModels<Project> availableModels = varModel.availableModels(); // Available models are never null
+            ModelInfo<Project> modelInfo = availableModels.getInfo(ivmlFile.toURI());
+            if (modelInfo != null) {                
+                String projectName = modelInfo.getName();
+                if (projectName != null) {
+                    List<ModelInfo<Project>> models = availableModels.getModelInfo(projectName);
+                    if (models != null) {                        
+                        Project loadedIvmlProject = varModel.load(models.get(0));
+                        if (loadedIvmlProject != null) {
+                            configuration = new Configuration(loadedIvmlProject);
+                        } else {
+                            throw new EASyUtilitiesException("No project \"" + projectName + "\"");
+                        }
+                    } else {
+                        throw new EASyUtilitiesException("No model information for project \"" + projectName + "\"");
+                    }
+                } else {
+                    throw new EASyUtilitiesException("No project name for model information from  URI \""
+                            + ivmlFile.toURI() + "\"");
+                }
+            } else {
+                throw new EASyUtilitiesException("No model information for URI \"" + ivmlFile.toURI() + "\"");
+            }
+        } catch (EASyUtilitiesException | ModelManagementException e) {
+            throw new EASyUtilitiesException("Loading configuration from file \"" + ivmlFile.getAbsolutePath()
+                    + "\" failed", e);
+        } catch (IOException e) {
+            throw new EASyUtilitiesException("Creating canonical path for file \"" + ivmlFile.getAbsolutePath()
+                    + "\" failed", e);
         }
         return configuration;
     }
     
     /**
-     * Iterates the known {@link Project}s in the {@link #varModel} and returns the first one, which has the given
-     * project name. This method does not support any sophisticated checks regarding the correct project, but depends
-     * solely on its name.
-     *  
-     * @param projectName the name of the project to search for
-     * @return the {@link Project} with the given name or <code>null</code>, if no such project is known or the given
-     *         name is <code>null</code> or <i>blank</i> 
+     * Unloads the given {@link Configuration}. If unloading is successful, all references to the given configuration
+     * must be released. This method does not care for such references other than the one managed by this instance.
+     * 
+     * @param configuration the configuration to unload
+     * @return <code>true</code>, if unloading the given configuration was successful; <code>false</code> otherwise,
+     *         which includes that the given configuration is <code>null</code> or no model was unloaded
+     * @throws EASyUtilitiesException if unloading the configuration fails unexpectedly
      */
-    public synchronized Project getProject(String projectName) {
-        Project project = null;
-        if (projectName != null && !projectName.isBlank()) {
-            int modelCount = varModel.getModelCount();
-            int modelCounter = 0;
-            Project currentProject;
-            while (project == null && modelCounter < modelCount) {
-                currentProject = varModel.getModel(modelCounter);
-                if (currentProject.getName().equals(projectName)) {
-                    project = currentProject;
+    public synchronized boolean unloadConfiguration(Configuration configuration) throws EASyUtilitiesException {
+        boolean configurationUnloaded = false;
+        if (configuration != null) {
+            try {
+                if (varModel.unload(configuration.getProject(), EASY_PROGRESS_OBSERVER) >= 1) {
+                    /*
+                     * Unloading returns the number of unloaded models.
+                     * This must be at least 1 due to the given configuration.
+                     * If this given configuration is the only one loaded so far, unloading will also unload the models
+                     * imported by that configuration to use the DevOpt meta model. 
+                     */
+                    configurationUnloaded = true;
                 }
-                modelCounter++;
+            } catch (ModelManagementException e) {
+                throw new EASyUtilitiesException("Unloading configuration \"" + configuration.getName() + "\" failed",
+                        e);
             }
         }
-        return project;
+        return configurationUnloaded;
     }
     
     /**
-     * Returns the name of the IVML project defined in the file denoted by the given model file name. This file must be
-     * available in the {@link #modelDirectory}.
+     * Checks the given {@link Configuration} for validity using the IVML reasoner provided by the EASy-Producer
+     * components.
      * 
-     * @param modelFileName the name of the model file for which the name of the defined project shall be returned; this
-     *        name must <b>not</b> include the <code>.ivml</code>-extension as it will be added automatically by this
-     *        method
-     * @return the name of the IVML project or <code>null</code>, if no project for the given model file is known
+     * @param configuration the configuration to check
+     * @return <code>true</code>, if the given configuration is valid; <code>false</code> otherwise, which includes that
+     *         the given configuration is <code>null</code>
+     * @throws EASyUtilitiesException if validating the configuration fails unexpectedly
      */
-    public synchronized String getProjectName(String modelFileName) {
-        String projectName = null;
-        if (modelFileName != null && !modelFileName.isBlank()) {
-            projectName = getProjectName(modelDirectory, modelFileName + ".ivml");
-        }
-        return projectName;
-    }
-    
-    /**
-     * Returns the name of the IVML project defined in the file denoted by the given model file name and located in the
-     * given model directory.
-     * 
-     * @param modelDirectory the {@link File} denoting the directory in which the model file is located
-     * @param modelFileName the name of the model file for which the name of the defined project shall be returned; this
-     *        name must include the <code>.ivml</code>-extension
-     * @return the name of the IVML project or <code>null</code>, if no project for the given model file is known
-     */
-    private String getProjectName(File modelDirectory, String modelFileName) {
-        String projectName = null;
-        File modelFile;
-        try {
-            modelFile = new File(modelDirectory.getCanonicalPath(), modelFileName);
-            URI modelFileUri = modelFile.toURI();
-            projectName = getProjectName(modelFileUri);
-        } catch (IOException e) {
-            logger.logWarning(ID, "Retrieving project name from file \"" + modelFileName +  "\" failed");
-            logger.logException(ID, e);
-        }
-        return projectName;
-    }
-    
-    /**
-     * Returns the name of the IVML project defined in the file denoted by the given {@link URI}.
-     * 
-     * @param modelFileUri the {@link URI} of the model file for which the name of the defined project shall be returned
-     * @return the name of the IVML project or <code>null</code>, if no project for the given URI is known
-     */
-    private String getProjectName(URI modelFileUri) {
-        String projectName = null;
-        AvailableModels<Project> availableModels = varModel.availableModels();
-        if (availableModels != null) {            
-            ModelInfo<Project> modelInfo = availableModels.getInfo(modelFileUri);
-            if (modelInfo != null) {                
-                projectName = modelInfo.getName();
+    public synchronized boolean isValid(Configuration configuration) throws EASyUtilitiesException {
+        boolean isValid = false;
+        if (configuration != null) {
+            ReasonerConfiguration reasonerConfiguration = new ReasonerConfiguration();
+            try {                
+                ReasoningResult reasoningResult = ReasonerFrontend.getInstance()
+                        .propagate(configuration, reasonerConfiguration, ProgressObserver.NO_OBSERVER);
+                isValid = !reasoningResult.hasConflict();
+            } catch (NullPointerException e) {
+                // Not documented, but was thrown by some tests
+                throw new EASyUtilitiesException("Checking validity of configuration \"" + configuration.getName()
+                        + "\" failed", e);
             }
         }
-        return projectName;
-    }
-    
-    /**
-     * Returns the current list of names of all IVML projects loaded in the {@link #varModel}.
-     * 
-     * @return the list of names of all loaded IVML projects; never <code>null</code>, but may be <i>empty</i>
-     */
-    public synchronized List<String> getProjectNames() {
-        List<String> projectNames = new ArrayList<String>();
-        int modelCount = varModel.getModelCount();
-        for (int i = 0; i < modelCount; i++) {
-            Project project = varModel.getModel(i);
-            projectNames.add(project.getName());
-        }
-        return projectNames;
+        return isValid;
     }
     
 }

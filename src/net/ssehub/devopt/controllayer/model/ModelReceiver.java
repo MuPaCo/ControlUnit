@@ -25,20 +25,18 @@ import net.ssehub.devopt.controllayer.network.HttpServer;
 import net.ssehub.devopt.controllayer.network.HttpServer.ServerState;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
-import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
-import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 
 
 /**
- * This class realizes a receiver for incoming registration request. Hence, it creates a network connection based on the
- * given constructor parameters. Each message received via this connection is interpreted as a valid IVML model, which
- * is defined by using the DevOpt meta model. An instance of this class adds this instance to the {@link EASyUtilities}
- * and, if this addition is successful, replies without any content to signal that there were no errors and the
- * registration was successful.
- * 
+ * This class realizes a receiver for incoming registration requests. Registrations allow the control unit to supervise
+ * the respective sender, an external entity. Hence, each message received via an instance of this class is interpreted
+ * as an IVML model definition based on the DevOpt meta model. Such definitions describe the respective external entity.
+ * The receiver therefore  creates a network connection based on the given constructor parameters and passes received
+ * message contents to the defined {@link ModelReceptionCallback} for further processing.<br>  
+ * <br>
  * Instances of this class always are under control of the {@link ModelManager}. Typically, there is only a single
- * instance, which calls the manager back, if the addition of a new model was successful. 
+ * instance, which calls the manager back, if a new message arrives. 
  * 
  * @author kroeher
  *
@@ -46,7 +44,7 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
 public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     
     /**
-     * The identifier of this class, e.g., for logging messages during instance creation. 
+     * The identifier of this class, e.g., for logging messages. 
      */
     private static final String ID = ModelReceiver.class.getSimpleName();
     
@@ -56,7 +54,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     private Logger logger = Logger.INSTANCE;
     
     /**
-     * The instance to inform about a successful addition of a new IVML model (successful registration).
+     * The instance to inform about any received messages.
      */
     private ModelReceptionCallback callback;
     
@@ -78,15 +76,10 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     private HttpServer httpServer;
     
     /**
-     * The local reference to the global {@link EASyUtilities}.
-     */
-    private EASyUtilities easyUtilities = EASyUtilities.INSTANCE;
-    
-    /**
-     * Constructs a new {@link ModelReceiver} instance for receiving models of local elements as a registration for
-     * supervision by the parent controller of this instance. This construction includes creating either a
-     * {@link MqttV3Client} or a {@link HttpServer} instance depending on the given protocol. Based on this protocol,
-     * the reception*-parameters are used as follows:
+     * Constructs a new {@link ModelReceiver} instance for receiving IVML models of external entities as a registration
+     * for supervision by the control unit. This construction includes creating either a {@link MqttV3Client} or a
+     * {@link HttpServer} instance depending on the given protocol. Based on this protocol, the reception parameters
+     * are used as follows:
      * <ul>
      * <li>If the protocol is <code>MQTT</code>, a {@link MqttV3Client} will be instantiate to subscribe to a
      *     registration topic of an external MQTT broker:</li>
@@ -113,7 +106,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
      *        establishing the HTTP server; may be <code>null</code>, if no user name is required
      * @param password the <i>optional</i>, non-blank password required by some external MQTT brokers or to use for
      *        establishing the HTTP server; may be <code>null</code>, if no password is required
-     * @param callback the instance to call back, if a new model is received
+     * @param callback the instance to call back, if a new message is received
      * @throws ModelException if the given protocol or the given reception callback is <code>null</code>, or creating
      *         the required network connection fails
      */
@@ -219,34 +212,13 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     }
     
     /**
-     * Adds the given message as an IVML model to the {@link #easyUtilities} and calls the {@link #callback} passing the
-     * created IVML model file name as well as the name of the loaded IVML project based on the model definitions.
+     * Informs the {@link #callback} about the reception of a new message with the given content.
      * 
-     * @param receivedMessage the message received from an external element for registration at this control node; it is
-     *        assumed that this message contains a valid IVML model based on the DevOpt meta model
-     * @return <code>null</code>, if the IVML model in the given message is successfully added (registration
-     *         successful), or an error message describing the problem with the given message (registration failed)
+     * @param receivedMessageContent the content of the received message
      */
-    private String processRegistration(String receivedMessage) {
-        String response = null;
-        if (receivedMessage == null || receivedMessage.isBlank()) {
-            response = "Received message is empty";
-        } else {
-            String modelFileName = "" + System.currentTimeMillis();
-            try {
-                String projectName = easyUtilities.addModel(receivedMessage, modelFileName);
-                if (projectName != null) {                    
-                    callback.modelReceived(modelFileName, projectName);
-                } else {
-                    response = "Loading IVML project failed";
-                    logger.logError(ID, response, "IVML model file: \"" + modelFileName + "\"");
-                }
-            } catch (EASyUtilitiesException e) {
-                response = e.getMessage();
-                logger.logException(ID, e);
-            }
-        }
-        return response;
+    private void informCallback(String receivedMessageContent) {
+        // TODO this call will block this receiver; decouple this receiver from the actual message content processing 
+        callback.modelReceived(receivedMessageContent);
     }
     
     @Override
@@ -272,7 +244,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         if (message != null) {
             byte[] payload = message.getPayload();
             if (payload != null) {
-                processRegistration(new String(payload));
+                informCallback(new String(payload));
             }
         }
     }
@@ -289,13 +261,9 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
             }
         } else {
             logger.logInfo(ID, "HTTP request arrived");
-            int responseCode = 400; // "Bad request" as default
-            String responseBody = processRegistration(request.getBody());
-            if (responseBody == null) {
-                // Registration ok, change response code to "OK"
-                responseCode = 200;
-                responseBody = "Registration successful";
-            }
+            informCallback(request.getBody());
+            int responseCode = 200; // "OK"
+            String responseBody = "Registration received";
             // TODO add correct response headers
             response = new HttpResponse(null, responseCode, responseBody);
             logger.logInfo(ID, "HTTP response", response.toString());

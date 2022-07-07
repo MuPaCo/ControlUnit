@@ -16,21 +16,32 @@ package net.ssehub.devopt.controllayer;
 
 import java.io.File;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
+import net.ssehub.devopt.controllayer.model.AbstractModelManagerTests;
 import net.ssehub.devopt.controllayer.model.EntityInfoTests;
-import net.ssehub.devopt.controllayer.model.ModelReceiverMqttTests;
+import net.ssehub.devopt.controllayer.model.ModelManagerUsageTests;
 import net.ssehub.devopt.controllayer.network.HttpClientCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpClientUsageTests;
 import net.ssehub.devopt.controllayer.network.HttpServerCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpServerUsageTests;
 import net.ssehub.devopt.controllayer.network.MqttV3ClientCreationTests;
 import net.ssehub.devopt.controllayer.network.MqttV3ClientUsageTests;
-import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesConfigurationLoadTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesConfigurationUnloadTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesIsValidTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationAdditionTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationKnownTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationRemovalTests;
+import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationUpdateTests;
+import net.ssehub.devopt.controllayer.utilities.Logger;
 import net.ssehub.devopt.controllayer.utilities.LoggerTests;
 import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
+import net.ssehub.devopt.controllayer.utilities.Logger.LogLevel;
 
 /**
  * Definition of this test suite.
@@ -42,7 +53,13 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
     SetupUsageTests.class,
     // Utilities tests
     LoggerTests.class,
-    EASyUtilitiesTests.class,
+    EASyUtilitiesModelLocationKnownTests.class,
+    EASyUtilitiesModelLocationAdditionTests.class,
+    EASyUtilitiesModelLocationUpdateTests.class,
+    EASyUtilitiesModelLocationRemovalTests.class,
+    EASyUtilitiesConfigurationLoadTests.class,
+    EASyUtilitiesConfigurationUnloadTests.class,
+    EASyUtilitiesIsValidTests.class,
     ModelUtilitiesTests.class,
     // Network tests
     HttpClientCreationTests.class,
@@ -52,7 +69,7 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
     MqttV3ClientCreationTests.class,
     MqttV3ClientUsageTests.class, /* These tests are unstable; see class description */
     // Model tests
-    ModelReceiverMqttTests.class,
+    ModelManagerUsageTests.class,
     EntityInfoTests.class
     })
 
@@ -63,6 +80,11 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
  *
  */
 public class AllTests {
+
+    /**
+     * The constant file denoting the base directory of the entire project. 
+     */
+    public static final File PROJECT_DIRECTORY = new File("");
 
     /**
      * The constant file denoting the base directory, which contains all test data used by some for the tests. 
@@ -78,5 +100,27 @@ public class AllTests {
      * The constant file denoting the directory, which contains configuration files for testing. 
      */
     public static final File TEST_CONFIGURATION_FILES_DIRECTORY = new File(TEST_DATA_DIRECTORY, "setup");
+    
+    /**
+     * Performs some preparation before all test classes of this suite are executed. This includes:
+     * <ul>
+     * <li>Adding {@link System#out} as output stream to the {@link Logger} with {@link LogLevel#DEBUG} </li>
+     * </ul>  
+     */
+    @BeforeClass
+    public static void setUp() {
+        Logger.INSTANCE.addOutputStream(System.out, LogLevel.DEBUG);
+    }
+    
+    /**
+     * Performs some final clean-up after all test classes of this suite are executed. This includes:
+     * <ul>
+     * <li>{@link AbstractModelManagerTests#deleteSetupArtifacts()}</li>
+     * </ul> 
+     */
+    @AfterClass
+    public static void tearDown() {
+        AbstractModelManagerTests.deleteSetupArtifacts();
+    }
     
 }
