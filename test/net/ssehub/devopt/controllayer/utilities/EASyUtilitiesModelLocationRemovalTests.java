@@ -49,7 +49,7 @@ public class EASyUtilitiesModelLocationRemovalTests extends AbstractEASyBasedTes
             {null, false},
             {new File("thisdoesnotexist"), false},
             {AllTests.TEST_IVML_FILES_DIRECTORY, false}, // IVML test file directory should not be added yet
-            {new File("./model"), true} // DevOpt meta model directory already added during EASy startup
+            {new File("./easy-producer-runtime"), true} // DevOpt meta model directory already added during EASy startup
     };
     
     /**

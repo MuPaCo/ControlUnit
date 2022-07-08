@@ -16,10 +16,11 @@ package net.ssehub.devopt.controllayer.utilities;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.io.InputStream;
 import java.util.List;
 
 import de.uni_hildesheim.sse.easy.loader.ListLoader;
+import net.ssehub.devopt.controllayer.utilities.FileUtilities.WriteOption;
 import net.ssehub.easy.basics.modelManagement.AvailableModels;
 import net.ssehub.easy.basics.modelManagement.ModelInfo;
 import net.ssehub.easy.basics.modelManagement.ModelManagementException;
@@ -39,11 +40,6 @@ import net.ssehub.easy.varModel.model.Project;
  *
  */
 public class EASyUtilities {
-
-    /**
-     * The singleton instance of this class.
-     */
-    public static final EASyUtilities INSTANCE = new EASyUtilities();
     
     /**
      * The identifier of this class, e.g. for printing messages.
@@ -56,12 +52,82 @@ public class EASyUtilities {
     private static final ProgressObserver EASY_PROGRESS_OBSERVER = ProgressObserver.NO_OBSERVER;
     
     /**
+     * The name of the directory, which will contain the runtime files necessary to start the EASy-Producer components
+     * and to load IVML models based on the DevOpt meta model. The method {@link #createRuntimeResources()} creates the
+     * corresponding directory and extracts the internal resources denoted by the {@link #EASY_RUNTIME_FILES_NAMES} to
+     * it.
+     */
+    private static final String EASY_RUNTIME_DIRECTORY_NAME = "easy-producer-runtime";
+    
+    /**
+     * The two parts of the path to the directory  which will contain the runtime files necessary to start the
+     * EASy-Producer components and to load IVML models based on the DevOpt meta model. The first part defines the
+     * parent path (directory), while the second part is the {@link #EASY_RUNTIME_DIRECTORY_NAME}.
+     */
+    private static final String[] EASY_RUNTIME_DIRECTORY_PATH_PARTS = {"./", EASY_RUNTIME_DIRECTORY_NAME};
+    
+    /**
+     * The name of the EASy-Producer startup file.
+     */
+    private static final String EASY_STARTUP_FILE_NAME = ".easy-producer";
+    
+    /**
+     * The names of the EASy-Producer runtime files. These files are:
+     * <ul>
+     * <li>The EASy-Producer startup file as defined by {@link #EASY_STARTUP_FILE_NAME}</li>
+     * <li>The IVML files defining the DevOpt meta model</li>
+     * </ul>
+     */
+    private static final String[] EASY_RUNTIME_FILES_NAMES = {EASY_STARTUP_FILE_NAME,
+        "DevOpt_Analysis.ivml",
+        "DevOpt_Basics.ivml",
+        "DevOpt_Configuration.ivml",
+        "DevOpt_Control.ivml",
+        "DevOpt_Description.ivml",
+        "DevOpt_Identification.ivml",
+        "DevOpt_Optimization.ivml",
+        "DevOpt_Runtime.ivml",
+        "DevOpt_Software.ivml",
+        "DevOpt_System.ivml"
+    };
+    
+    /**
+     * The singleton instance of this class.
+     */
+    /*
+     * checkstyle: stop declaration order check
+     * 
+     * Construction requires EASY_RUNTIME_DIRECTORY_PATH_PARTS. Hence, different declaration order required
+     */
+    public static final EASyUtilities INSTANCE = new EASyUtilities();
+    //checkstyle: resume declaration order check
+    
+    /**
+     * The local reference to the global {@link Logger}.
+     */
+    private Logger logger = Logger.INSTANCE;
+    
+    /**
+     * The local reference to the global {@link FileUtilities}.
+     */
+    private FileUtilities fileUtilities = FileUtilities.INSTANCE;
+    
+    /**
+     * The directory containing the runtime files necessary to start the EASy-Producer components and to load IVML
+     * models based on the DevOpt meta model. The method {@link #createRuntimeResources()} creates this directory and
+     * extracts the internal resources denoted by the {@link #EASY_RUNTIME_FILES_NAMES} to it. The method
+     * {@link #deleteRuntimeResources()} deletes this directory and its content again.
+     */
+    private File easyRuntimeDirectory;
+    
+    /**
      * The loader for the EASy-Producer components.
      */
     private ListLoader easyLoader;
     
     /**
-     * The local reference to the global {@link VarModel} of EASy-Producer.
+     * The local reference to the global {@link VarModel} of EASy-Producer, if starting the EASy-Producer components was
+     * successful; <code>null</code> otherwise.
      */
     private VarModel varModel;
     
@@ -72,30 +138,89 @@ public class EASyUtilities {
     private boolean easyComponentsLoaded;
     
     /**
-     * The local reference to the global {@link Logger}.
-     */
-    private Logger logger = Logger.INSTANCE;
-    
-    /**
      * Constructs a new {@link EASyUtilities} instance.
      */
     private EASyUtilities() {
+        /*
+         * Creating file instance at this point already is necessary to support checks in areRuntimeResourcesCreated()
+         * before any directory will be created conditionally upon its existence
+         */
+        easyRuntimeDirectory = new File(EASY_RUNTIME_DIRECTORY_PATH_PARTS[0], EASY_RUNTIME_DIRECTORY_PATH_PARTS[1]);
+        easyLoader = null;
+        varModel = null;
         easyComponentsLoaded = false;
     }
     
     /**
      * Starts the components of EASy-Producer, defines the {@link #varModel} reference, and adds the DevOpt meta model
-     * directory as model location to the {@link #varModel}. This method must be called exactly once before this
-     * instance is used the first time. Calling this method multiple times without stopping the components in between
-     * has no effect.
+     * directory as model location to the {@link #varModel}. For this purpose, this method extracts the required runtime
+     * resources first via {@link #createRuntimeResources()}.<br>
+     * <br>
+     * This method must be called exactly once before this instance is used the first time. Calling this method multiple
+     * times without stopping the components in between has no effect.
      *
-     * @throws EASyUtilitiesException if starting the components, adding the directory, or retrieving necessary
-     *                                information for these tasks fails
+     * @throws EASyUtilitiesException if extracting the runtime resources, starting the components, adding the
+     *                                directory, or retrieving necessary information for these tasks fails
      * @see #stopEASyComponents()
      */
-    public void startEASyComponents() throws EASyUtilitiesException {        
+    public void startEASyComponents() throws EASyUtilitiesException {
+        logger.logDebug(ID, "Starting EASy-Producer components");
         if (!easyComponentsLoaded) {
-            // Retrieve class loader for identifying EASy-Producer startup file and DevOpt meta model resources
+            logger.logDebug(ID, "Creating runtime resources");
+            createRuntimeResources();
+            
+            logger.logDebug(ID, "Loading core components");
+            // Start EASy-Producer components using the startup file in the runtime directory
+            try {
+                easyLoader = new ListLoader(new File(easyRuntimeDirectory, EASY_STARTUP_FILE_NAME));
+                easyLoader.startup();
+            } catch (NullPointerException | IOException e) {
+                throw new EASyUtilitiesException("Loading EASy-Producer components failed", e);
+            }
+            // If starting EASy-Producer components was successful, set reference to its variability model and...
+            varModel = VarModel.INSTANCE;
+            
+            logger.logDebug(ID, "Adding runtime resources directory as model location");
+            // ... add runtime directory (contains DevOpt meta model) as model location to the variability model
+            try {
+                if (!addModelLocation(easyRuntimeDirectory)) {
+                    throw new EASyUtilitiesException("Adding DevOpt meta model location \""
+                            + easyRuntimeDirectory.getParentFile() + "\" failed");
+                }
+            } catch (NullPointerException | EASyUtilitiesException e) {
+                throw new EASyUtilitiesException("Adding DevOpt meta model directory failed", e);
+            }
+            
+            // Track successful start
+            easyComponentsLoaded = true;
+            logger.logDebug(ID, "EASy-Producer components started");
+        } else {
+            logger.logDebug(ID, "EASy-Producer components already started");
+        }
+    }
+    
+    /**
+     * Creates the required runtime resources for the EASy-Producer components by creating the
+     * {@link #easyRuntimeDirectory} and extracting the internal resources denoted by the
+     * {@link #EASY_RUNTIME_FILES_NAMES} as files to that directory.<br>
+     * <br>
+     * This method must only be called, if {@link #easyComponentsLoaded} is <code>false</code> and before any
+     * EASy-Producer component is started, e.g. at the beginning of {@link #startEASyComponents()} only.
+     *  
+     * @throws EASyUtilitiesException if creating the directory, retrieving the necessary class loader, or writing the
+     *         files denoting runtime resources fails
+     * @see #deleteRuntimeResources()
+     */
+    private void createRuntimeResources() throws EASyUtilitiesException {
+        if (!areRuntimeResourcesCreated()) {
+            // Create root runtime directory at the current location of this tool
+            try {
+                easyRuntimeDirectory = fileUtilities.createDirectory(EASY_RUNTIME_DIRECTORY_PATH_PARTS[0],
+                        EASY_RUNTIME_DIRECTORY_PATH_PARTS[1]);
+            } catch (FileUtilitiesException e) {
+                throw new EASyUtilitiesException("Creating runtime resources directory failed", e);
+            }
+            // Retrieve class loader for identifying EASy-Producer resources
             Class<?> thisClass = this.getClass();
             ClassLoader thisClassLoader = null;
             try {                
@@ -104,47 +229,85 @@ public class EASyUtilities {
                 throw new EASyUtilitiesException("Retrieving class loader for resource identification failed", e);
             }
             if (thisClassLoader != null) {
-                File resourceFile;
-                // Start EASy-Producer components using the respective startup file resource
-                try {
-                    resourceFile = new File(thisClassLoader.getResource(".easy-producer").toURI());
-                    easyLoader = new ListLoader(resourceFile);
-                    easyLoader.startup();
-                } catch (NullPointerException | URISyntaxException | IllegalArgumentException | IOException e) {
-                    throw new EASyUtilitiesException("Loading EASy-Producer components failed", e);
-                }
-                // If starting EASy-Producer components was successful, set reference to its variability model and...
-                varModel = VarModel.INSTANCE;
-                // ... add DevOpt meta model directory as model location to the EASy-Producer variability model
-                try {
-                    resourceFile = new File(thisClassLoader.getResource("DevOpt_System.ivml").toURI());
-                    if (!addModelLocation(resourceFile.getParentFile())) {
-                        throw new EASyUtilitiesException("Adding internal DevOpt meta model location \""
-                                + resourceFile.getParentFile() + "\" failed");
+                // Extract all runtime file contents from internal resources to files in runtime directory
+                String resourceName;
+                InputStream resourceStream;
+                for (int i = 0; i < EASY_RUNTIME_FILES_NAMES.length; i++) {                
+                    resourceName = EASY_RUNTIME_FILES_NAMES[i];
+                    resourceStream = thisClassLoader.getResourceAsStream(resourceName);
+                    if (resourceStream == null) {
+                        throw new EASyUtilitiesException("No input stream available for resource \"" + resourceName
+                                + "\"");
                     }
-                } catch (NullPointerException | URISyntaxException | IllegalArgumentException
-                        | EASyUtilitiesException e) {
-                    throw new EASyUtilitiesException("Adding DevOpt meta model directory failed", e);
+                    try {
+                        fileUtilities.writeFile(easyRuntimeDirectory.getAbsolutePath(), resourceName, resourceStream,
+                                WriteOption.CREATE);
+                    } catch (FileUtilitiesException e) {
+                        throw new EASyUtilitiesException("Writing runtime resouce \"" + resourceName + "\" to \""
+                                + easyRuntimeDirectory.getAbsolutePath() + "\"failed", e);
+                    }
                 }
-                // Track successful loading
-                easyComponentsLoaded = true;
-                logger.logDebug(ID, "EASy-Producer components started");
             } else {
-                throw new EASyUtilitiesException("No EASyUtilities class loader for resource identification available");
+                // Should never happen
+                throw new EASyUtilitiesException("No class loader for resource identification available");
             }
+        } else {
+            logger.logDebug(ID, "Runtime resources already created at \"" + easyRuntimeDirectory + "\"");
         }
     }
     
     /**
-     * Removes all model locations from the {@link #varModel} (including the DevOpt meta model directory)  and stops the
-     * components of EASy-Producer. This method must be called exactly once after this instance is used the last time.
-     * Calling this method multiple times without starting the components in between has no effect.
+     * Checks whether the {@link #easyRuntimeDirectory} exists and contains all files denoted by the
+     * {@link #EASY_RUNTIME_FILES_NAMES}.
      * 
-     * @throws EASyUtilitiesException if removing a model location fails
+     * @return <code>true</code>, if runtime resource exist; <code>false</code> otherwise
+     */
+    private boolean areRuntimeResourcesCreated() {
+        boolean runtimeResourcesCreated = false;
+        if (easyRuntimeDirectory != null && easyRuntimeDirectory.exists()) {
+            String[] easyRuntimeDirectoryFileNames = easyRuntimeDirectory.list();
+            if (easyRuntimeDirectoryFileNames != null
+                    && easyRuntimeDirectoryFileNames.length == EASY_RUNTIME_FILES_NAMES.length) {
+                runtimeResourcesCreated = true;
+                int easyRuntimeFilesNamesCounter = 0;
+                int easyRuntimeDirectoryFileNamesCounter;
+                boolean runtimeResourceFound;
+                while (runtimeResourcesCreated && easyRuntimeFilesNamesCounter < EASY_RUNTIME_FILES_NAMES.length) {
+                    easyRuntimeDirectoryFileNamesCounter = 0;
+                    runtimeResourceFound = false;
+                    while (!runtimeResourceFound
+                            && easyRuntimeDirectoryFileNamesCounter < easyRuntimeDirectoryFileNames.length) {
+                        runtimeResourceFound = EASY_RUNTIME_FILES_NAMES[easyRuntimeFilesNamesCounter]
+                                .equals(easyRuntimeDirectoryFileNames[easyRuntimeDirectoryFileNamesCounter]);
+                        easyRuntimeDirectoryFileNamesCounter++;
+                    }
+                    runtimeResourcesCreated = runtimeResourceFound;
+                    easyRuntimeFilesNamesCounter++;
+                }
+            } else {
+                logger.logDebug(ID, "Runtime resources directory contains wrong number of files");
+            }
+        } else {
+            logger.logDebug(ID, "Runtime resources directory not created yet");
+        }
+        return runtimeResourcesCreated;
+    }
+    
+    /**
+     * Removes all model locations from the {@link #varModel} (including the DevOpt meta model directory) and stops the
+     * components of EASy-Producer. Finally, this method deletes the required runtime resources via
+     * {@link #deleteRuntimeResources()}.<br>
+     * <br>
+     * This method must be called exactly once after this instance is used the last time. Calling this method multiple
+     * times without starting the components in between has no effect.
+     * 
+     * @throws EASyUtilitiesException if removing a model location or deleting the runtime resources fails
      * @see #startEASyComponents()
      */
     public void stopEASyComponents() throws EASyUtilitiesException {
+        logger.logDebug(ID, "Stopping EASy-Producer components");
         if (easyComponentsLoaded) {
+            logger.logDebug(ID, "Removing all model locations");
             try {
                 // Remove all model locations before actual shutdown
                 File[] locationFiles = new File [varModel.locations().getLocationCount()];
@@ -157,9 +320,39 @@ public class EASyUtilities {
             } catch (EASyUtilitiesException e) {
                 throw new EASyUtilitiesException("Removing model locations failed", e);
             }
+            
+            logger.logDebug(ID, "Unloading core components");
             easyLoader.shutdown();
+            
+            logger.logDebug(ID, "Deletin runtime resources");
+            deleteRuntimeResources();
+            
+            // Track successful stop
             easyComponentsLoaded = false;
             logger.logDebug(ID, "EASy-Producer components stopped");
+        } else {
+            logger.logDebug(ID, "EASy-Producer components already stopped");
+        }
+    }
+    
+    /**
+     * Deletes the {@link #easyRuntimeDirectory} and its entire content.<br>
+     * <br>
+     * This method must only be called, if {@link #easyComponentsLoaded} is <code>true</code> and after all
+     * EASy-Producer component are stopped, e.g. at the end of {@link #stopEASyComponents()} only.
+     *  
+     * @throws EASyUtilitiesException if deleting the directory or one of its files fails
+     * @see #createRuntimeResources()
+     */
+    private void deleteRuntimeResources() throws EASyUtilitiesException {
+        if (easyRuntimeDirectory != null && easyRuntimeDirectory.exists()) {
+            try {
+                fileUtilities.delete(easyRuntimeDirectory);
+            } catch (FileUtilitiesException e) {
+                throw new EASyUtilitiesException("Deleting runtime resources failed", e);
+            }
+        } else {
+            logger.logDebug(ID, "Runtime resources directory not available", "No deletion of runtime resources");
         }
     }
     

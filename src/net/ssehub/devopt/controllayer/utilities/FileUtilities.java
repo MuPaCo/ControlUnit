@@ -18,11 +18,15 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This class provides thread-safe utility methods for reading and writing files.
@@ -128,9 +132,29 @@ public class FileUtilities {
                         + "\" failed", e);
             }
         } else {
-            logger.logWarning(ID, "Directory to create already exists: no further actions", "Directory: \"" 
+            logger.logDebug(ID, "Directory to create already exists: no further actions", "Directory: \"" 
                     + directory.getAbsolutePath() + "\"");
         }
+    }
+    
+    /**
+     * Writes the given content to the file specified by the given path and file name. Depending on the given
+     * {@link WriteOption}, this method creates a new file, overwrites an existing file, or appends the given content to
+     * the end of an existing file.
+     * 
+     * @param path the fully-qualified path to the file to write to
+     * @param fileName the name of the file (including the file extension) to write to
+     * @param fileContent the input stream providing the content to write
+     * @param writeOption the write option defining how to write
+     * @throws FileUtilitiesException if creating, writing, overwriting or appending the desired file fails
+     */
+    public synchronized void writeFile(String path, String fileName, InputStream fileContent, WriteOption writeOption)
+            throws FileUtilitiesException {
+        logger.logDebug(ID, "Writing file", "Path: \"" + path + "\"", "Name: \"" + fileName + "\"", "Option: "
+                + writeOption.name());
+        String fileContentString = new BufferedReader(new InputStreamReader(fileContent, StandardCharsets.UTF_8))
+                .lines().collect(Collectors.joining(System.lineSeparator()));
+        writeFile(path, fileName, fileContentString, writeOption);
     }
     
     /**
