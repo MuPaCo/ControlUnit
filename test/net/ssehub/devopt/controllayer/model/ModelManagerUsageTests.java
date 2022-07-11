@@ -40,29 +40,21 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
      * <ul>
      * <li>The file denoting the IVML model file, which is used to load an IVML model string that in turn is input to
      *     {@link ModelManager#modelReceived(String)} during {@link #testModelReceived()} </li>
-     * <li>The expected identifier of the entity described by the received model; must be <code>null</code>, if model
-     *     reception is expected to fail</li>
      * <li>The expected number of {@link EntityInfo} instances available by the {@link ModelReceiver}</li>
      * </ul>
      */
     private static final Object[][] TEST_DATA = {
-            {"ProjectMissingClosingBracket.ivml", null, 0},
-            {"InvalidDevOptProject.ivml", null, 0},
-            {"EmptyProject.ivml", null, 0},
-            {"MonitoringDevOptProject.ivml", "System under Monitoring", 1},
-            {"MonitoringDevOptProject.ivml", "System under Monitoring", 1}, /* Same count, if adding same model twice */
+            {"ProjectMissingClosingBracket.ivml", 0},
+            {"InvalidDevOptProject.ivml", 0},
+            {"EmptyProject.ivml", 0},
+            {"MonitoringDevOptProject.ivml", 1},
+            {"MonitoringDevOptProject.ivml", 1}, /* Same count, if adding same model twice */
     };
     
     /**
      * The string representation of the IVML model used for the current test iteration.
      */
     private String testIvmlModel;
-    
-    /**
-     * The expected identifier of the entity described by the received model; may be <code>null</code>, if model
-     * reception is expected to fail.
-     */
-    private String expectedReceivedModelIdentifier;
     
     /**
      * The expected number of {@link EntityInfo} instances available by the {@link ModelReceiver}.
@@ -74,17 +66,13 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
      * {@link #TEST_DATA}.
      * 
      * @param testIvmlModelFileName the string representation of the IVML model used for the current test iteration
-     * @param expectedReceivedModelIdentifier the expected identifier of the entity described by the received model; may
-     *        be <code>null</code>, if model reception is expected to fail
      * @param expectedAvailableModelCount the expected number of {@link EntityInfo} instances available by the
      *        {@link ModelReceiver}
      */
-    public ModelManagerUsageTests(String testIvmlModelFileName, String expectedReceivedModelIdentifier,
-            int expectedAvailableModelCount) {
+    public ModelManagerUsageTests(String testIvmlModelFileName, int expectedAvailableModelCount) {
         super(); // Creates the test model manager instance, if not already created by previous tests
         File testIvmlModelFile = new File(AllTests.TEST_IVML_FILES_DIRECTORY, testIvmlModelFileName);
         testIvmlModel = getIvmlModelString(testIvmlModelFile);
-        this.expectedReceivedModelIdentifier = expectedReceivedModelIdentifier;
         this.expectedAvailableModelCount = expectedAvailableModelCount;
     }
     
@@ -99,45 +87,16 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
     }
     
     /**
-     * Tests whether the call of {@link ModelManager#modelReceived(String)} with the {@link #testIvmlModel} results in
-     * the {@link #expectedReceivedModelIdentifier} identifying an available {@link EntityInfo} instance in the
-     * {@link ModelManager} instance.
-     */
-    @Test
-    public void testModelReceived() {
-        testModelManagerInstance.modelReceived(testIvmlModel);
-        assertEquals(expectedReceivedModelIdentifier, getAvailableEntityInfoIdentifier(expectedReceivedModelIdentifier),
-                "Incorrect available entity information");
-        
-    }
-    
-    /**
-     * Tests whether {@link ModelManager#getEntityInfoCount()} is equal to the {@link #expectedAvailableModelCount}.
+     * Tests whether {@link ModelManager#getEntityInfoCount()} is equal to the {@link #expectedAvailableModelCount}.As
+     * the model manager creates keys to retrieve {@link EntityInfo} instance internally based on the current time, it
+     * is not possible to check for correct addition of a new model (entity information) by retrieving that instance.
+     * The necessary key is not known in this class. 
      */
     @Test
     public void testModelCount() {
+        testModelManagerInstance.modelReceived(testIvmlModel);
         assertEquals(expectedAvailableModelCount, testModelManagerInstance.getEntityInfoCount(),
                 "Incorrect number of available entity information");
-    }
-    
-    /**
-     * Returns the entity identifier of an {@link EntityInfo} instance available by the {@link ModelManager} instance,
-     * if it is equal to the given identifier.
-     *  
-     * @param identifier the entity identifier to search for 
-     * @return the available entity identifier matching the given one, or <code>null</code>, if no such entity
-     *         identifier is available by the {@link ModelManager} instance
-     */
-    private String getAvailableEntityInfoIdentifier(String identifier) {
-        String entityInfoIdentifier = null;
-        int entityInfoCounter = 0;
-        while (entityInfoIdentifier == null && entityInfoCounter < testModelManagerInstance.getEntityInfoCount()) {
-            if (testModelManagerInstance.getEntityInfo(entityInfoCounter).getIdentifier().equals(identifier)) {
-                entityInfoIdentifier = testModelManagerInstance.getEntityInfo(entityInfoCounter).getIdentifier();
-            }
-            entityInfoCounter++;
-        }
-        return entityInfoIdentifier;
     }
     
 }

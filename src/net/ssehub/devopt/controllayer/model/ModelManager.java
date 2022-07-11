@@ -16,10 +16,11 @@ package net.ssehub.devopt.controllayer.model;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import net.ssehub.devopt.controllayer.Setup;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiver;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.FileUtilities;
@@ -75,9 +76,11 @@ public class ModelManager implements ModelReceptionCallback {
     private File modelDirectory;
     
     /**
-     * The list of all {@link EntityInfo} instances loaded from the received models in the {@link #modelDirectory}.
+     * The mapping of all {@link EntityInfo} instances loaded from the received models in the {@link #modelDirectory}.
+     * The keys for these mapping are the respective IVML model file names from which the {@link EntityInfo} instances
+     * were created.
      */
-    private List<EntityInfo> entityInformation;
+    private HashMap<String, EntityInfo> entityInformation;
     /*
      * TODO Can we shutdown EASy and release IVML models/resources again after model addition?
      * This manager and, hence, the remaining controller components withh use EntityInfo instances internally.
@@ -87,7 +90,7 @@ public class ModelManager implements ModelReceptionCallback {
      * Constructs a new {@link ModelManager} instance.
      */
     private ModelManager() {
-        entityInformation = new ArrayList<EntityInfo>();        
+        entityInformation = new HashMap<String, EntityInfo>();        
     }
     
     /**
@@ -143,10 +146,19 @@ public class ModelManager implements ModelReceptionCallback {
                         
                     });
                     if (availableModelFiles != null) {
+                        String availableModelFileName;
                         for (int i = 0; i < availableModelFiles.length; i++) {
-                            if (!addModelInformation(availableModelFiles[i])) {
-                                logger.logWarning(ID, "Adding model information from \"" + availableModelFiles[i]
-                                        + "\" not successful");
+                            availableModelFileName = availableModelFiles[i].getName();
+                            try {                                
+                                availableModelFileName = availableModelFileName.substring(0,
+                                        availableModelFileName.indexOf("."));
+                                if (addModelInformation(availableModelFileName, availableModelFiles[i]) == null) {
+                                    logger.logWarning(ID, "Adding model information from \"" + availableModelFiles[i]
+                                            + "\" not successful");
+                                }
+                            } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                                throw new ModelException("Parsing model identifier from file name \""
+                                        + availableModelFileName + "\" failed", null);
                             }
                         }
                     } else {
@@ -167,20 +179,23 @@ public class ModelManager implements ModelReceptionCallback {
     
     /**
      * Adds the {@link EntityInfo} defined by the {@link Configuration} of the model in the given file to the
-     * {@link #entityInformation}.
+     * {@link #entityInformation} with the given key.
      * 
+     * @param ivmlModelIdentifier the identifier to use as key for the addition of the created {@link EntityInfo};
+     *        must not be <code>null</code> nor <i>blank</i>
      * @param ivmlModelFile the IVML model file for which the {@link Configuration} will be retrieved from the
-     *        {@link #easyUtilities} to create the corresponding {@link EntityInfo} to add
-     * @return <code>true</code>, if the addition was successful; <code>false</code> otherwise
+     *        {@link #easyUtilities} to create the corresponding {@link EntityInfo} to add; must not be
+     *        <code>null</code>
+     * @return the created {@link EntityInfo} instance, if its addition was successful; <code>null</code> otherwise 
      */
-    private boolean addModelInformation(File ivmlModelFile) {
-        boolean modelInformationAdded = false;
+    private EntityInfo addModelInformation(String ivmlModelIdentifier, File ivmlModelFile) {
+        EntityInfo addedEntityInformation = null;
         try {
             Configuration modelConfiguration = easyUtilities.loadConfiguration(ivmlModelFile);
             if (easyUtilities.isValid(modelConfiguration)) {
                 EntityInfo entityInfo = new EntityInfo(modelConfiguration, ivmlModelFile.getAbsolutePath());
-                if (!isEntityInfoKnown(entityInfo)) {                    
-                    modelInformationAdded = entityInformation.add(entityInfo);
+                if (!isEntityInfoKnown(entityInfo) && entityInformation.put(ivmlModelIdentifier, entityInfo) == null) {
+                    addedEntityInformation = entityInfo;
                 } else {
                     logger.logWarning(ID, "Entity information already known", "No addition of: "
                             + entityInfo.toString());
@@ -192,7 +207,7 @@ public class ModelManager implements ModelReceptionCallback {
         } catch (EASyUtilitiesException | ModelException e) {
             logger.logException(ID, e);
         }
-        return modelInformationAdded;
+        return addedEntityInformation;
     }
     
     /**
@@ -205,13 +220,12 @@ public class ModelManager implements ModelReceptionCallback {
     private boolean isEntityInfoKnown(EntityInfo entityInfo) {
         boolean entityInfoKnown = false;
         if (entityInfo != null) {
-            int entityInformationCounter = 0;
-            while (!entityInfoKnown && entityInformationCounter < entityInformation.size()) {
-                if (entityInfo.equals(entityInformation.get(entityInformationCounter))) {
+            Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
+            while (!entityInfoKnown && entityInformationKeysIterator.hasNext()) {
+                if (entityInfo.equals(entityInformation.get(entityInformationKeysIterator.next()))) {
                     entityInfoKnown = true;
                 }
-                entityInformationCounter++;
-            }            
+            }       
         }
         return entityInfoKnown;
     }
@@ -239,32 +253,50 @@ public class ModelManager implements ModelReceptionCallback {
      * @throws ModelException if activating the network connection of the model receiver fails 
      */
     public void run() throws ModelException {
+        // TODO establish monitoring for all available models already loaded during setup
         modelReceiver.start();
     }
 
     @Override
     public void modelReceived(String receivedContent) {
         if (receivedContent != null && !receivedContent.isBlank()) {
-            addNewModel(receivedContent);
+            String modelIdentifier = "" + System.currentTimeMillis();
+            EntityInfo addedEntityInfo = addReceivedModel(modelIdentifier, receivedContent);
+            if (addedEntityInfo != null) {
+                if (!MonitoringDataReceiver.INSTANCE.addObservable(modelIdentifier, addedEntityInfo.getIdentifier(),
+                        addedEntityInfo.getMonitoringChannel(), addedEntityInfo.getMonitoringUrl(),
+                        addedEntityInfo.getMonitoringPort())) {
+                    logger.logWarning(ID, "Establishing entity monitroring failed", addedEntityInfo.toString());
+                }
+            } else {
+                logger.logWarning(ID, "Adding entity information failed", "Received information: " + receivedContent);
+            }
+        } else {
+            logger.logDebug(ID, "Receiving empty message content");
         }
     }
     
     /**
-     * Adds the given model to the {@link #entityInformation}. For this purpose, the given string is written to a new
-     * file in the {@link #modelDirectory}. That file is used to load an IVML, create the respective configuration, and,
-     * hence, the corresponding {@link EntityInfo} instance. If one of these steps fail for any reason, this method logs
-     * these errors and warnings only (no further propagation).
+     * Adds the given model to the {@link #entityInformation} using the given model identifier as key. For this purpose,
+     * the given string is written to a new file in the {@link #modelDirectory}. This file is used to load the contained
+     * IVML model, create the respective configuration, and, hence, the corresponding {@link EntityInfo} instance. If
+     * one of these steps fail for any reason, this method logs these errors and warnings only (no further propagation).
      * 
+     * @param modelIdentifier the identifier to use as key for the addition of the created {@link EntityInfo};must not
+     *        be <code>null</code> nor <i>blank</i>
      * @param model the string to interpret as IVML model; must no be <code>null</code>
+     * @return the created {@link EntityInfo} instance, if its addition was successful; <code>null</code> otherwise 
      */
-    private void addNewModel(String model) {
-        String modelFileName = System.currentTimeMillis() + ".ivml";
+    private EntityInfo addReceivedModel(String modelIdentifier, String model) {
+        EntityInfo addedEntityInfo = null;
+        String modelFileName = modelIdentifier + ".ivml";
         logger.logInfo(ID, "Adding new IVML model \"" + modelFileName + "\"");
         try {
             fileUtilities.writeFile(modelDirectory.getAbsolutePath(), modelFileName, model, WriteOption.CREATE);
             File newModelFile = new File(modelDirectory, modelFileName);
             easyUtilities.updateModelLocation(modelDirectory);
-            if (!addModelInformation(newModelFile)) {
+            addedEntityInfo = addModelInformation(modelIdentifier, newModelFile);
+            if (addedEntityInfo == null) {
                 logger.logWarning(ID, "Adding information for IVML model \"" + modelFileName + "\" failed",
                         "Deleting model file again");
                 fileUtilities.delete(newModelFile);
@@ -272,31 +304,28 @@ public class ModelManager implements ModelReceptionCallback {
         } catch (FileUtilitiesException | EASyUtilitiesException e) {
             logger.logException(ID, e);
         }
+        return addedEntityInfo;
     }
     
     /**
      * Returns the number of {@link EntityInfo} instances loaded from the received models in the
      * {@link #modelDirectory}.
      * 
-     * @return zero-based number of available {@link EntityInfo} instance 
+     * @return zero-based number of available {@link EntityInfo} instances
      */
     public synchronized int getEntityInfoCount() {
         return entityInformation.size();
     }
     
     /**
-     * Returns the {@link EntityInfo} instance at the given index.
+     * Returns the {@link EntityInfo} instance for the given key.
      * 
-     * @param index the index of the instance to return
-     * @return the instance at the given index, or <code>null</code>, if the given index is negative or larger than the
-     *         largest index of the {@link #entityInformation}
+     * @param key the key of the instance to return
+     * @return the instance for the given key, or <code>null</code>, if the given key maps to <code>null</code> or the
+     *         key is not known
      */
-    public synchronized EntityInfo getEntityInfo(int index) {
-        EntityInfo entityInfo = null;
-        if (index >= 0 && index < entityInformation.size()) {
-            entityInfo = entityInformation.get(index);
-        }
-        return entityInfo;
+    public synchronized EntityInfo getEntityInfo(String key) {
+        return entityInformation.get(key);
     }
 
 }
