@@ -221,6 +221,9 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         callback.modelReceived(receivedMessageContent);
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void connectionLost(Throwable cause) {
         logger.logException(ID, new ModelException(mqttClient + " lost connection", cause));
@@ -233,11 +236,17 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
         /* not required here */
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
         logger.logDebug(ID, "New MQTT message arrived");
@@ -249,6 +258,9 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public HttpResponse requestArrived(HttpRequest request, NetworkException exception) {
         HttpResponse response = null;
