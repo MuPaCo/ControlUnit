@@ -16,10 +16,22 @@ package net.ssehub.devopt.controllayer.monitoring;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+
 import net.ssehub.devopt.controllayer.model.EntityInfo;
+import net.ssehub.devopt.controllayer.model.ModelException;
 import net.ssehub.devopt.controllayer.model.ModelManager;
+import net.ssehub.devopt.controllayer.network.HttpRequest;
+import net.ssehub.devopt.controllayer.network.HttpRequestCallback;
+import net.ssehub.devopt.controllayer.network.HttpResponse;
+import net.ssehub.devopt.controllayer.network.MqttV3Client;
+import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
  * This class realizes the singleton receiver for monitoring/runtime data from individual entities of the local layer.
@@ -31,7 +43,7 @@ import net.ssehub.devopt.controllayer.model.ModelManager;
  * @author kroeher
  *
  */
-public class MonitoringDataReceiver {
+public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback {
     
     /**
      * The singleton instance of this class.
@@ -43,7 +55,22 @@ public class MonitoringDataReceiver {
      */
     private static final String ID = MonitoringDataReceiver.class.getSimpleName();
     
+    /**
+     * The local reference to the global {@link Logger}.
+     */
+    private Logger logger = Logger.INSTANCE;
+    
     private List<MonitoringDataReceptionCallback> callbacks;
+    
+    /**
+     * The mapping of all {@link MqttV3Client} instances created for receiving monitoring data from observables.
+     * The keys for these mapping are the respective IVML model file names from which the monitoring information was
+     * extracted.
+     * 
+     * TODO Currently, MQTT support is enough, but to also support other channels as expected, the value type of this
+     * map and, hence, its general access must be extended.
+     */
+    private HashMap<String, MqttV3Client> observables;
     
     /*
      * TODO Define and use a data structure that enables decoupling the reception of monitoring data from observables
@@ -57,6 +84,7 @@ public class MonitoringDataReceiver {
      */
     private MonitoringDataReceiver() {
         callbacks = new ArrayList<MonitoringDataReceptionCallback>();
+        observables = new HashMap<String, MqttV3Client>();
     }
     
     /**
@@ -65,6 +93,7 @@ public class MonitoringDataReceiver {
      * 
      * @param callback the callback to add to the list all callbacks
      * @return <code>true</code> (as specified by {@link Collection#add(Object)})
+     * @see #removeCallback(MonitoringDataReceptionCallback)
      */
     public boolean addCallback(MonitoringDataReceptionCallback callback) {
         return callbacks.add(callback);
@@ -76,50 +105,171 @@ public class MonitoringDataReceiver {
      * 
      * @param callback the callback to remove from the list all callbacks
      * @return <code>true</code>, if the list of callbacks contained the specified element; <code>false</code> otherwise
+     * @see #addCallback(MonitoringDataReceptionCallback)
      */
     public boolean removeCallback(MonitoringDataReceptionCallback callback) {
         return callbacks.remove(callback);
     }
     
-    // TODO write correct JavaDoc
-    public boolean addObservable(EntityInfo observable) {
-        /*
-         * TODO Start monitoring the component represented by the information in the given ObservableInfo instance.
-         * This includes:
-         *     - Creating a new network connection to listen to runtime data produced by the component
-         *     - Adding this network connection to the general listening loop of all active monitoring connections of
-         *       this class
-         *     - Manage this network connection until it is actively removed by calling removeObservable below
-         * 
-         * Return true, if starting monitoring was successful; return false otherwise
-         */
-        return true;
-    }
-    
-    // TODO write correct JavaDoc
-    public boolean removeObservable(EntityInfo observable) {
-        /*
-         * TODO Stop monitoring the component represented by the information in the given ObservableInfo instance.
-         * This includes:
-         *     - Removing the network connection created for the component from the general listening loop of all active
-         *       monitoring connections of this class
-         *     - Close the network connection created for the component (release the object in the end)
-         * 
-         * Return true, if stopping monitoring was successful; return false otherwise
-         */
-        return true;
+    /**
+     * Uses the given channel, URL, and port number to establish and maintain a corresponding network connection to the
+     * entity with the given identifier and internal key. The data received via that network connection is interpreted
+     * as an entities runtime data, which will be propagated to all {@link #callbacks} of this receiver.
+     *   
+     * @param key the key identifying the {@link EntityInfo} instance of the entity to observe; for consistent
+     *        references, this must be the key as generated by the {@link ModelManager} during registration of that
+     *        entity
+     * @param identifier the identifier of the entity as defined by its {@link EntityInfo} instance
+     * @param channel the channel (MQTT topic name or HTTP server context name) of the entity's monitoring scope as
+     *        defined by its {@link EntityInfo} instance
+     * @param url the URL of the entity's monitoring scope as defined by its {@link EntityInfo} instance
+     * @param port the port number of the entity's monitoring scope as defined by its {@link EntityInfo} instance
+     * @return <code>true</code>, if this addition was successful; <code>false otherwise</code>, e.g. if the network
+     *         connection could not be established
+     * @see #removeObservable(String)
+     */
+    public boolean addObservable(String key, String identifier, String channel, String url, int port) {
+        logger.logInfo(ID, "Adding observable \"" + identifier + "\"");
+        boolean observableAdded = false;
+        try {
+            if (!observables.containsKey(key)) {                
+                MqttV3Client monitoringClient = new MqttV3Client(identifier, url, port, null, null);
+                monitoringClient.subscribe(channel, 2, this);
+                if (observables.put(key, monitoringClient) == null) {
+                    observableAdded = true;
+                } else {
+                    // Should never be reached
+                    logger.logWarning(ID, "Adding observable \"" + identifier 
+                            + "\" replaced existing monitoring without key", "This should not happen");
+                }
+            } else {
+                logger.logWarning(ID, "Monitoring of \"" + identifier + "\" already established",
+                        "No addition of observable again");
+            }
+        } catch (NetworkException e) {
+            logger.logException(ID, e);
+        }
+        return observableAdded;
     }
     
     /**
-     * Sends the given source and its monitoring data to all {@link #callbacks}.
+     * Closes the network connection to the entity identified by the given key and removes all related date from this
+     * receiver.
      * 
-     * @param source the information about the component that created the monitoring data 
-     * @param data the monitoring data of the source
+     * @param key the key identifying the {@link EntityInfo} instance of the observed entity to remove; for consistent
+     *        references, this must be the key as generated by the {@link ModelManager} during registration of that
+     *        entity
+     * @return <code>true</code>, if this removal was successful; <code>false otherwise</code>, e.g. if the network
+     *         connection could not be closed
+     * @see #addObservable(String, String, String, String, int)
      */
-    private void propagateMonitoringData(EntityInfo source, String data) {
-        for (MonitoringDataReceptionCallback callback : callbacks) {
-            callback.monitoringDataReceived(source, data);
+    public boolean removeObservable(String key) {
+        logger.logInfo(ID, "Removing observable for identification key \"" + key + "\"");
+        boolean observableRemoved = false;
+        if (key != null && !key.isBlank()) {
+            if (observables.containsKey(key)) {
+                MqttV3Client monitoringClient = observables.remove(key);
+                if (monitoringClient != null) {
+                    try {
+                        monitoringClient.close();
+                        observableRemoved = true;
+                    } catch (NetworkException e) {
+                        logger.logException(ID, e);
+                    }
+                } else {
+                    logger.logWarning(ID, "Removing observable failed",
+                            "No network client available for identification key \"" + key + "\"");
+                }
+            } else {
+                logger.logWarning(ID, "Removing observable failed", "Unknown identification key \"" + key + "\"");
+            }
+        } else {
+            logger.logWarning(ID, "Removing observable without identification key is not possible");
+        }
+        return observableRemoved;
+    }
+    
+    /**
+     * Sends the given (monitoring) data received via the given channel to all {@link #callbacks}.
+     * 
+     * @param channel the channel on which the monitoring data was received; this is the MQTT topic name or HTTP server
+     *        context name of the entity's monitoring scope as defined by its {@link EntityInfo} instance
+     * @param data the data to propagate
+     */
+    private void propagateMonitoringData(String channel, String data) {
+        // TODO this blocks further data reception - decouple this method calls from basic data reception
+        if (channel != null && !channel.isBlank()) {
+            if (data != null && !data.isBlank()) {                
+                for (MonitoringDataReceptionCallback callback : callbacks) {
+                    callback.monitoringDataReceived(channel, data);
+                }
+            } else {
+                logger.logDebug(ID, "Monitoring data not propagated", "No data to propagate");
+            }
+        } else {
+            logger.logDebug(ID, "Monitoring data not propagated", "No reception channel available");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void connectionLost(Throwable cause) {
+        logger.logException(ID, new ModelException("Monitoring connection lost", cause));
+        // TODO realize re-connect
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void deliveryComplete(IMqttDeliveryToken token) {
+        /* not required here */
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void messageArrived(String topic, MqttMessage message) throws Exception {
+        if (message != null) {
+            byte[] payload = message.getPayload();
+            if (payload != null) {
+                propagateMonitoringData(topic, new String(payload));
+            }
         }
     }
     
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public HttpResponse requestArrived(HttpRequest request, NetworkException exception) {
+        HttpResponse response = null;
+        if (request == null) {
+            if (exception == null)  {
+                logger.logWarning(ID, "HTTP request arrived with \"null\"-parameters");
+            } else {
+                logger.logError(ID, "HTTP request arrived exceptional");
+                logger.logException(ID, exception);
+            }
+        } else {
+            propagateMonitoringData(request.getUri().getPath(), request.getBody());
+            int responseCode = 200; // "OK"
+            String responseBody = "Monitoring data received";
+            // TODO add correct response headers
+            response = new HttpResponse(null, responseCode, responseBody);
+        }
+        return response;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getName() {
+        return ID;
+    }
+
 }

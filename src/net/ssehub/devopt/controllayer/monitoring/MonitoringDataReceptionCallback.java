@@ -18,7 +18,7 @@ import net.ssehub.devopt.controllayer.model.EntityInfo;
 
 /**
  * This interface needs to be implemented by any class that needs to be informed about new monitoring data from any of
- * the registered and observed entites.
+ * the registered and observed entities.
  * 
  * @author kroeher
  *
@@ -26,12 +26,14 @@ import net.ssehub.devopt.controllayer.model.EntityInfo;
 public interface MonitoringDataReceptionCallback {
     
     /**
-     * Receives the information about source and its (latest) runtime data as received by the
-     * {@link MonitoringDataReceiver}.
-     *  
-     * @param source the information about the entity that created the received runtime data 
-     * @param data the (latest) runtime data received by the source
+     * Receives the data from the given channel. The subsequent processing of this data depends on the specific
+     * receiver.
+     * 
+     * @param channel the channel on which the monitoring data was received; this is the MQTT topic name or HTTP server
+     *        context name of the entity's monitoring scope as defined by its {@link EntityInfo} instance; must not be
+     *        <code>null</code> nor <i>blank</i>
+     * @param data the data received via the channel; must not be <code>null</code> nor <i>blank</i> 
      */
-    public abstract void monitoringDataReceived(EntityInfo source, String data);
+    public abstract void monitoringDataReceived(String channel, String data);
     
 }
