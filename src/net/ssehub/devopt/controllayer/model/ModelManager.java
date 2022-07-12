@@ -248,12 +248,24 @@ public class ModelManager implements ModelReceptionCallback {
     }
     
     /**
-     * Starts the internal {@link ModelReceiver}.
+     * Starts the internal {@link ModelReceiver} after establish monitoring for all available models already loaded
+     * during setup.
      * 
-     * @throws ModelException if activating the network connection of the model receiver fails 
+     * @throws ModelException if activating the network connection of the model receiver fails
      */
     public void run() throws ModelException {
-        // TODO establish monitoring for all available models already loaded during setup
+        // Establish monitoring for all available models already loaded during setup
+        Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
+        String entityInformationKey;
+        EntityInfo entityInfo;
+        while (entityInformationKeysIterator.hasNext()) {
+            entityInformationKey = entityInformationKeysIterator.next();
+            entityInfo = entityInformation.get(entityInformationKey);
+            if (!establishMonitoring(entityInformationKey, entityInfo)) {
+                logger.logWarning(ID, "Establishing entity monitroring failed", entityInfo.toString());
+            }
+        }
+        // Start model receiver to receive registration requests
         modelReceiver.start();
     }
 
@@ -263,9 +275,7 @@ public class ModelManager implements ModelReceptionCallback {
             String modelIdentifier = "" + System.currentTimeMillis();
             EntityInfo addedEntityInfo = addReceivedModel(modelIdentifier, receivedContent);
             if (addedEntityInfo != null) {
-                if (!MonitoringDataReceiver.INSTANCE.addObservable(modelIdentifier, addedEntityInfo.getIdentifier(),
-                        addedEntityInfo.getMonitoringChannel(), addedEntityInfo.getMonitoringUrl(),
-                        addedEntityInfo.getMonitoringPort())) {
+                if (!establishMonitoring(modelIdentifier, addedEntityInfo)) {
                     logger.logWarning(ID, "Establishing entity monitroring failed", addedEntityInfo.toString());
                 }
             } else {
@@ -305,6 +315,22 @@ public class ModelManager implements ModelReceptionCallback {
             logger.logException(ID, e);
         }
         return addedEntityInfo;
+    }
+    
+    /**
+     * Calls the {@link MonitoringDataReceiver} instance using the given key and entity information to add a new
+     * observable. If this addition is successful, a network connection is active that allows monitoring the respective
+     * entity via its parameters defined for monitoring in its model. The monitoring data receives manages this
+     * connection and informs registered callbacks about received monitoring messages.
+     * 
+     * @param key the key for the {@link EntityInfo} as available in the {@link #entityInformation} map
+     * @param observableInfo the information about the entity to add as observable
+     * @return <code>true</code>, if the addition was successful; <code>false</code> otherwiser
+     */
+    private boolean establishMonitoring(String key, EntityInfo observableInfo) {
+        return MonitoringDataReceiver.INSTANCE.addObservable(key, observableInfo.getIdentifier(),
+                observableInfo.getMonitoringChannel(), observableInfo.getMonitoringUrl(),
+                observableInfo.getMonitoringPort());
     }
     
     /**
