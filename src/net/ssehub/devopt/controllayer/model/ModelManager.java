@@ -256,12 +256,10 @@ public class ModelManager implements ModelReceptionCallback {
     public void run() throws ModelException {
         // Establish monitoring for all available models already loaded during setup
         Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
-        String entityInformationKey;
         EntityInfo entityInfo;
         while (entityInformationKeysIterator.hasNext()) {
-            entityInformationKey = entityInformationKeysIterator.next();
-            entityInfo = entityInformation.get(entityInformationKey);
-            if (!establishMonitoring(entityInformationKey, entityInfo)) {
+            entityInfo = entityInformation.get(entityInformationKeysIterator.next());
+            if (!establishMonitoring(entityInfo)) {
                 logger.logWarning(ID, "Establishing entity monitroring failed", entityInfo.toString());
             }
         }
@@ -275,7 +273,7 @@ public class ModelManager implements ModelReceptionCallback {
             String modelIdentifier = "" + System.currentTimeMillis();
             EntityInfo addedEntityInfo = addReceivedModel(modelIdentifier, receivedContent);
             if (addedEntityInfo != null) {
-                if (!establishMonitoring(modelIdentifier, addedEntityInfo)) {
+                if (!establishMonitoring(addedEntityInfo)) {
                     logger.logWarning(ID, "Establishing entity monitroring failed", addedEntityInfo.toString());
                 }
             } else {
@@ -318,17 +316,16 @@ public class ModelManager implements ModelReceptionCallback {
     }
     
     /**
-     * Calls the {@link MonitoringDataReceiver} instance using the given key and entity information to add a new
-     * observable. If this addition is successful, a network connection is active that allows monitoring the respective
-     * entity via its parameters defined for monitoring in its model. The monitoring data receives manages this
-     * connection and informs registered callbacks about received monitoring messages.
+     * Calls the {@link MonitoringDataReceiver} instance using the given entity information to add a new observable. If
+     * this addition is successful, a network connection is active that allows monitoring the respective entity via its
+     * parameters defined for monitoring in its model. The monitoring data receiver manages this connection and informs
+     * registered callbacks about received monitoring messages.
      * 
-     * @param key the key for the {@link EntityInfo} as available in the {@link #entityInformation} map
      * @param observableInfo the information about the entity to add as observable
-     * @return <code>true</code>, if the addition was successful; <code>false</code> otherwiser
+     * @return <code>true</code>, if the addition was successful; <code>false</code> otherwise
      */
-    private boolean establishMonitoring(String key, EntityInfo observableInfo) {
-        return MonitoringDataReceiver.INSTANCE.addObservable(key, observableInfo.getIdentifier(),
+    private boolean establishMonitoring(EntityInfo observableInfo) {
+        return MonitoringDataReceiver.INSTANCE.addObservable(observableInfo.getIdentifier(),
                 observableInfo.getMonitoringChannel(), observableInfo.getMonitoringUrl(),
                 observableInfo.getMonitoringPort());
     }
@@ -350,8 +347,32 @@ public class ModelManager implements ModelReceptionCallback {
      * @return the instance for the given key, or <code>null</code>, if the given key maps to <code>null</code> or the
      *         key is not known
      */
-    public synchronized EntityInfo getEntityInfo(String key) {
+    public synchronized EntityInfo getByKey(String key) {
         return entityInformation.get(key);
+    }
+    
+    /**
+     * Returns the {@link EntityInfo} instance with the given monitoring channel definition. If multiple instances with
+     * the same monitoring channel definition exist, the first match will be returned only.
+     * 
+     * @param channel the channel (MQTT topic name or HTTP server context name) defined as monitoring scope of the
+     *        instance to return
+     * @return the instance for the given channel, or <code>null</code>, if the given channel is <code>null</code> or
+     *         <i>blank</i>, or, if no such instance is available
+     */
+    public synchronized EntityInfo getByChannel(String channel) {
+        EntityInfo entityInfo = null;
+        if (channel != null && !channel.isBlank()) {
+            Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
+            EntityInfo currentEntityInfo;
+            while (entityInfo == null && entityInformationKeysIterator.hasNext()) {
+                currentEntityInfo = entityInformation.get(entityInformationKeysIterator.next());
+                if (channel.equals(currentEntityInfo.getMonitoringChannel())) {
+                    entityInfo = currentEntityInfo;
+                }
+            }
+        }
+        return entityInfo;
     }
 
 }
