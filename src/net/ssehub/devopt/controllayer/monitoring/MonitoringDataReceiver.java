@@ -60,6 +60,9 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      */
     private Logger logger = Logger.INSTANCE;
     
+    /**
+     * The list of other components to propagate each received message from all observables to.  
+     */
     private List<MonitoringDataReceptionCallback> callbacks;
     
     /**
