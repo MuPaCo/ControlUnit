@@ -95,11 +95,17 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      * about any runtime data received from all observables managed by this receiver.
      * 
      * @param callback the callback to add to the list all callbacks
-     * @return <code>true</code> (as specified by {@link Collection#add(Object)})
+     * @return <code>true</code>, if the addition was successful; <code>false</code>, if the given callback is
+     *         <code>null</code>, the list already contains an equal object, or {@link Collection#add(Object)} returned
+     *         <code>false</code>
      * @see #removeCallback(MonitoringDataReceptionCallback)
      */
     public boolean addCallback(MonitoringDataReceptionCallback callback) {
-        return callbacks.add(callback);
+        boolean callbackAdded = false;
+        if (callback != null && !callbacks.contains(callback)) {
+            callbackAdded = callbacks.add(callback);
+        }
+        return callbackAdded;
     }
     
     /**
@@ -107,11 +113,17 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      * called anymore about runtime data received from observables managed by this receiver.
      * 
      * @param callback the callback to remove from the list all callbacks
-     * @return <code>true</code>, if the list of callbacks contained the specified element; <code>false</code> otherwise
+     * @return <code>true</code>, if the removal was successful; <code>false</code>, if the given callback is
+     *         <code>null</code>, the list does not contain an equal object, or {@link Collection#remove(Object)}
+     *         returned <code>false</code>
      * @see #addCallback(MonitoringDataReceptionCallback)
      */
     public boolean removeCallback(MonitoringDataReceptionCallback callback) {
-        return callbacks.remove(callback);
+        boolean callbackRemoved = false;
+        if (callback != null && callbacks.contains(callback)) {
+            callbackRemoved = callbacks.remove(callback);
+        }
+        return callbackRemoved;
     }
     
     /**

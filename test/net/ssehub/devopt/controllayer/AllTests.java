@@ -25,6 +25,8 @@ import org.junit.runners.Suite.SuiteClasses;
 import net.ssehub.devopt.controllayer.model.AbstractModelManagerTests;
 import net.ssehub.devopt.controllayer.model.EntityInfoTests;
 import net.ssehub.devopt.controllayer.model.ModelManagerUsageTests;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverCallbackAdditionTests;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverCallbackRemovalTests;
 import net.ssehub.devopt.controllayer.network.HttpClientCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpClientUsageTests;
 import net.ssehub.devopt.controllayer.network.HttpServerCreationTests;
@@ -39,9 +41,9 @@ import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationKnownT
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationRemovalTests;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesModelLocationUpdateTests;
 import net.ssehub.devopt.controllayer.utilities.Logger;
+import net.ssehub.devopt.controllayer.utilities.Logger.LogLevel;
 import net.ssehub.devopt.controllayer.utilities.LoggerTests;
 import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
-import net.ssehub.devopt.controllayer.utilities.Logger.LogLevel;
 
 /**
  * Definition of this test suite.
@@ -70,7 +72,10 @@ import net.ssehub.devopt.controllayer.utilities.Logger.LogLevel;
     MqttV3ClientUsageTests.class, /* These tests are unstable; see class description */
     // Model tests
     ModelManagerUsageTests.class,
-    EntityInfoTests.class
+    EntityInfoTests.class,
+    // Monitoring tests
+    MonitoringDataReceiverCallbackAdditionTests.class,
+    MonitoringDataReceiverCallbackRemovalTests.class
     })
 
 /**
