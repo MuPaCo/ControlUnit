@@ -98,7 +98,7 @@ public class MonitoringDataReceiverCallbackRemovalTests {
      * Adds all {@link #TEST_CALLBACKS} to the {@link MonitoringDataReceiver}.
      */
     @BeforeClass
-    public static void addTestCallback() {
+    public static void addTestCallbacks() {
         for (int i = 0; i < TEST_CALLBACKS.length; i++) {            
             if (!MonitoringDataReceiver.INSTANCE.addCallback(TEST_CALLBACKS[i])) {
                 fail("Adding test callback \"" + TEST_CALLBACKS[i] + "\" failed");
