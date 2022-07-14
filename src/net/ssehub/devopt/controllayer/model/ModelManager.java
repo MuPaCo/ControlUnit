@@ -203,6 +203,7 @@ public class ModelManager implements ModelReceptionCallback {
             } else {
                 logger.logWarning(ID, "Model information addition aborted", "Model configuration from \""
                         + ivmlModelFile + "\" is not valid");
+                // TODO also log the exact problem(s) here - the above warning alone is not sufficient
             }
         } catch (EASyUtilitiesException | ModelException e) {
             logger.logException(ID, e);
