@@ -163,14 +163,18 @@ public class EntityInfo {
              * Split monitoring scope string into its parts, like:
              * 
              * Monitoring scope string = "entity/monitoring/mqtt/topic@127.0.0.1:8883"
+             *                           or "devopttestmonitoring@tcp://broker.hivemq.com:1883"
              * Observable info URL     = "127.0.0.1"
+             *                           or "tcp://broker.hivemq.com"
              * Observable info port    = 8883
+             *                           or 1883
              * Observable info channel = "entity/monitoring/mqtt/topic"
+             *                           or "devopttestmonitoring"
              */
             int indexOfAt = monitoringScope.indexOf('@');
-            int indexOfColon = monitoringScope.indexOf(':');
+            int indexOfLastColon = monitoringScope.lastIndexOf(':');
             try {
-                monitoringUrl = monitoringScope.substring(indexOfAt + 1, indexOfColon);
+                monitoringUrl = monitoringScope.substring(indexOfAt + 1, indexOfLastColon);
                 if (monitoringUrl.isBlank()) {
                     throw new ModelException("No URL defined for monitoring scope");
                 }
@@ -178,7 +182,7 @@ public class EntityInfo {
                 throw new ModelException("Invalid monitoring scope definition: \"" + monitoringScope + "\"", e);
             }
             try {                
-                monitoringPort = Integer.valueOf(monitoringScope.substring(indexOfColon + 1));
+                monitoringPort = Integer.valueOf(monitoringScope.substring(indexOfLastColon + 1));
                 if (monitoringPort < 0 || monitoringPort > 65535) {
                     throw new ModelException("No (valid) port defined for monitoring scope: " + monitoringPort);
                 }

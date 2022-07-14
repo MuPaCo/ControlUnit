@@ -79,6 +79,8 @@ public class EntityInfoTests extends AbstractEASyBasedTests {
                 "No monitoring scope defined for entity", null, null, -1, null, -1, null},
             {"MonitoringDevOptProject.ivml", "MonitoringDevOptProject", null, "System under Monitoring", "192.168.1.11",
                 1883, "127.0.0.1", 8883, "entity/monitoring/mqtt/topic"},
+            {"MonitoringHiveBrokerDevOptProject.ivml", "MonitoringHiveBrokerDevOptProject", null, "MonitoringViaHyve",
+                "192.168.0.23", 1883, "tcp://broker.hivemq.com", 1883, "devopttestmonitoring"},
     };
     
     /**

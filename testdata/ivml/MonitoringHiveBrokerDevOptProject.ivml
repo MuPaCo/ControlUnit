@@ -1,0 +1,41 @@
+project MonitoringHiveBrokerDevOptProject {
+
+    import DevOpt_System;
+    
+    Identification entityIdentification = {
+        identifier = "MonitoringViaHyve",
+        host = "192.168.0.23",
+        port = 1883
+    };
+
+    IdentificationDescription identificationDescription = {
+        description = entityIdentification
+    };
+    
+    IntegerParameter entityPowerBalance = {
+        name = "Power Balance",
+        value = null
+    };
+    
+    RuntimeDate entityMonitoring = {
+        timestamp = null,
+        monitoringScope = "devopttestmonitoring@tcp://broker.hivemq.com:1883",
+        value = entityPowerBalance,
+        expressions = null
+    };
+    
+    RuntimeDescription runtimeDescription = {
+        description = entityMonitoring
+    };
+    
+    EntityDescription observableDescription = {
+        identificationDescription,
+        runtimeDescription
+    };
+    
+    Entity observable = {
+        name = "Observable",
+        description = observableDescription
+    };
+    
+}

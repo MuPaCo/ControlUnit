@@ -47,8 +47,9 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
             {"ProjectMissingClosingBracket.ivml", 0},
             {"InvalidDevOptProject.ivml", 0},
             {"EmptyProject.ivml", 0},
-            {"MonitoringDevOptProject.ivml", 1},
-            {"MonitoringDevOptProject.ivml", 1}, /* Same count, if adding same model twice */
+            {"MonitoringHiveBrokerDevOptProject.ivml", 1},
+            {"MonitoringDevOptProject.ivml", 2},
+            {"MonitoringDevOptProject.ivml", 2}, /* Same count, if adding same model twice */
     };
     
     /**
