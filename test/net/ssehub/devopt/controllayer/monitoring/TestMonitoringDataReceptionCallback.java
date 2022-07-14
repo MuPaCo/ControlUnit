@@ -45,6 +45,13 @@ public class TestMonitoringDataReceptionCallback implements MonitoringDataRecept
      */
     public TestMonitoringDataReceptionCallback(String name) {
         this.name = name;
+        reset();
+    }
+    
+    /**
+     * Sets the channel and the data to <code>null</code>.
+     */
+    public void reset() {
         channel = null;
         data = null;
     }

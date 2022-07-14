@@ -27,6 +27,8 @@ import net.ssehub.devopt.controllayer.model.EntityInfoTests;
 import net.ssehub.devopt.controllayer.model.ModelManagerUsageTests;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverCallbackAdditionTests;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverCallbackRemovalTests;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverObservableAdditionTests;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverObservableRemovalTests;
 import net.ssehub.devopt.controllayer.network.HttpClientCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpClientUsageTests;
 import net.ssehub.devopt.controllayer.network.HttpServerCreationTests;
@@ -75,7 +77,9 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
     EntityInfoTests.class,
     // Monitoring tests
     MonitoringDataReceiverCallbackAdditionTests.class,
-    MonitoringDataReceiverCallbackRemovalTests.class
+    MonitoringDataReceiverCallbackRemovalTests.class,
+    MonitoringDataReceiverObservableAdditionTests.class,
+    MonitoringDataReceiverObservableRemovalTests.class
     })
 
 /**
