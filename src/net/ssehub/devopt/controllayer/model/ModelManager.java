@@ -275,7 +275,7 @@ public class ModelManager implements ModelReceptionCallback {
             EntityInfo addedEntityInfo = addReceivedModel(modelIdentifier, receivedContent);
             if (addedEntityInfo != null) {
                 if (!establishMonitoring(addedEntityInfo)) {
-                    logger.logWarning(ID, "Establishing entity monitroring failed", addedEntityInfo.toString());
+                    logger.logWarning(ID, "Establishing entity monitoring failed", addedEntityInfo.toString());
                 }
             } else {
                 logger.logWarning(ID, "Adding entity information failed", "Received information: " + receivedContent);
