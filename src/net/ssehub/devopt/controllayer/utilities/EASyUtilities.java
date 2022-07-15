@@ -506,21 +506,23 @@ public class EASyUtilities {
             ModelInfo<Project> modelInfo = availableModels.getInfo(ivmlFile.toURI());
             if (modelInfo != null) {                
                 String projectName = modelInfo.getName();
-                if (projectName != null) {
-                    List<ModelInfo<Project>> models = availableModels.getModelInfo(projectName);
-                    if (models != null) {                        
-                        Project loadedIvmlProject = varModel.load(models.get(0));
-                        if (loadedIvmlProject != null) {
-                            configuration = new Configuration(loadedIvmlProject);
-                        } else {
-                            throw new EASyUtilitiesException("No project \"" + projectName + "\"");
+                List<ModelInfo<Project>> models = availableModels.getModelInfo(projectName);
+                if (models != null) {
+                    int modelInfoCounter = 0;
+                    while (configuration == null && modelInfoCounter < models.size()) {
+                        modelInfo = models.get(modelInfoCounter);
+                        if (modelInfo.getLocation().equals(ivmlFile.toURI())) {                                
+                            Project loadedIvmlProject = varModel.load(modelInfo);
+                            if (loadedIvmlProject != null) {
+                                configuration = new Configuration(loadedIvmlProject);
+                            } else {
+                                throw new EASyUtilitiesException("No project \"" + projectName + "\"");
+                            }
                         }
-                    } else {
-                        throw new EASyUtilitiesException("No model information for project \"" + projectName + "\"");
+                        modelInfoCounter++;
                     }
                 } else {
-                    throw new EASyUtilitiesException("No project name for model information from  URI \""
-                            + ivmlFile.toURI() + "\"");
+                    throw new EASyUtilitiesException("No model information for project \"" + projectName + "\"");
                 }
             } else {
                 throw new EASyUtilitiesException("No model information for URI \"" + ivmlFile.toURI() + "\"");
