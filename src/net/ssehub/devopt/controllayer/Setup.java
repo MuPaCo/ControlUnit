@@ -31,8 +31,6 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  * 
  * Logger: additional output streams and their log level
  * 
- * Monitoring: Network connection (server/subscriber) for incoming monitoring data
- * 
  * Update:
  *  Network connection (server/subscriber) for incoming update notifications
  *  Network connection (server/subscriber) for incoming update data
@@ -43,11 +41,6 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  * Data:
  *  Network connection for data caching with external data storage
  *  Network connection (client/publisher) for outgoing (aggregated) monitoring data
- *  
- * TODO the Setup instance also represents the current config, if reading the configuration file was successful
- * TODO for each not set, but mandatory config, their must be a default value to be used in such cases
- * TODO a setup must be printable in a pretty manner, to display the runtime configuration at start-up
- * TODO as part of pretty printing, the usage of default value must be highlighted
  * 
  */
 
