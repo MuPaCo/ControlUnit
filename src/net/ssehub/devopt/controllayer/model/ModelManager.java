@@ -83,7 +83,9 @@ public class ModelManager implements ModelReceptionCallback {
     private HashMap<String, EntityInfo> entityInformation;
     /*
      * TODO Can we shutdown EASy and release IVML models/resources again after model addition?
-     * This manager and, hence, the remaining controller components withh use EntityInfo instances internally.
+     * This manager and, hence, the remaining controller components will use EntityInfo instances internally.
+     * 
+     * Partially done as addModelInformation() unloads the source configuration again. However, EASy is still running.
      */
     
     /**
@@ -190,8 +192,9 @@ public class ModelManager implements ModelReceptionCallback {
      */
     private EntityInfo addModelInformation(String ivmlModelIdentifier, File ivmlModelFile) {
         EntityInfo addedEntityInformation = null;
+        Configuration modelConfiguration = null;
         try {
-            Configuration modelConfiguration = easyUtilities.loadConfiguration(ivmlModelFile);
+            modelConfiguration = easyUtilities.loadConfiguration(ivmlModelFile);
             if (easyUtilities.isValid(modelConfiguration)) {
                 EntityInfo entityInfo = new EntityInfo(modelConfiguration, ivmlModelFile.getAbsolutePath());
                 if (!isEntityInfoKnown(entityInfo) && entityInformation.put(ivmlModelIdentifier, entityInfo) == null) {
@@ -207,6 +210,18 @@ public class ModelManager implements ModelReceptionCallback {
             }
         } catch (EASyUtilitiesException | ModelException e) {
             logger.logException(ID, e);
+        } finally {
+            if (modelConfiguration != null) {
+                logger.logDebug(ID, "Unloading model configuration source for \"" + ivmlModelIdentifier + "\"");
+                try {
+                    if (!easyUtilities.unloadConfiguration(modelConfiguration)) {
+                        logger.logWarning(ID, "Unloading model configuration source for \"" + ivmlModelIdentifier
+                                + "\" failed");
+                    }
+                } catch (EASyUtilitiesException e) {
+                    logger.logException(ID, e);
+                }
+            }
         }
         return addedEntityInformation;
     }
@@ -275,7 +290,20 @@ public class ModelManager implements ModelReceptionCallback {
             EntityInfo addedEntityInfo = addReceivedModel(modelIdentifier, receivedContent);
             if (addedEntityInfo != null) {
                 if (!establishMonitoring(addedEntityInfo)) {
-                    logger.logWarning(ID, "Establishing entity monitoring failed", addedEntityInfo.toString());
+                    logger.logWarning(ID, "Establishing entity monitoring failed",
+                            "Removing entity information including sources: " + addedEntityInfo.toString());
+                    /*
+                     * At this point, the source configuration is already unloaded from EASy-Producer as part of
+                     * addModelInformation(). Hence, it is only necessary to delete the IVML file, update the model
+                     * location for EASy, and remove the EntityInfo from the map.
+                     */
+                    try {
+                        fileUtilities.delete(new File(addedEntityInfo.getSourceFilePath()));
+                        easyUtilities.updateModelLocation(modelDirectory);
+                        entityInformation.remove(modelIdentifier);
+                    } catch (FileUtilitiesException | EASyUtilitiesException e) {
+                        logger.logException(ID, e);
+                    }
                 }
             } else {
                 logger.logWarning(ID, "Adding entity information failed", "Received information: " + receivedContent);
@@ -309,6 +337,7 @@ public class ModelManager implements ModelReceptionCallback {
                 logger.logWarning(ID, "Adding information for IVML model \"" + modelFileName + "\" failed",
                         "Deleting model file again");
                 fileUtilities.delete(newModelFile);
+                easyUtilities.updateModelLocation(modelDirectory);
             }
         } catch (FileUtilitiesException | EASyUtilitiesException e) {
             logger.logException(ID, e);
