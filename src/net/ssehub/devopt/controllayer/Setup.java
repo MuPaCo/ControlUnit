@@ -147,27 +147,34 @@ public class Setup {
     private static final String LOGGING_DEBUG_DEFAULT_VALUE = "n";
     
     /**
-     * The default value for the configuration properties identified by {@link #KEY_REGISTRATION_PROTOCOL}.
+     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_PROTOCOL}.
      */
     private static final String REGISTRATION_DEFAULT_PROTOCOL = "HTTP";
     
     /**
-     * The default value for the configuration properties identified by {@link #KEY_REGISTRATION_URL}.
+     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_URL}.
      */
     private static final String REGISTRATION_DEFAULT_URL = "127.0.0.1";
     
     /**
-     * The default value for the configuration properties identified by {@link #KEY_REGISTRATION_PORT}.
+     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_PORT}.
      */
     private static final String REGISTRATION_DEFAULT_PORT = "80";
     
     /**
-     * The default value for the configuration properties identified by {@link #KEY_REGISTRATION_CHANNEL}.
+     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_CHANNEL}, if the value
+     * of the configuration property identified by {@link #KEY_REGISTRATION_PROTOCOL} is <code>MQTT</code>.
      */
-    private static final String REGISTRATION_DEFAULT_CHANNEL = "/registration";
+    private static final String REGISTRATION_DEFAULT_MQTT_CHANNEL = "registration";
     
     /**
-     * The default value for the configuration properties identified by {@link #KEY_MODEL_DIRECTORY}.
+     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_CHANNEL} if the value
+     * of the configuration property identified by {@link #KEY_REGISTRATION_PROTOCOL} is <code>HTTP</code>.
+     */
+    private static final String REGISTRATION_DEFAULT_HTTP_CHANNEL = "/" + REGISTRATION_DEFAULT_MQTT_CHANNEL;
+    
+    /**
+     * The default value for the configuration property identified by {@link #KEY_MODEL_DIRECTORY}.
      */
     private static final String MODEL_DEFAULT_DIRECTORY = "./models";
     
@@ -376,16 +383,21 @@ public class Setup {
         // Validate registration channel
         key = KEY_REGISTRATION_CHANNEL;
         value = getRegistrationConfiguration(key);
-        defaultValue = REGISTRATION_DEFAULT_CHANNEL;
+        // Default channel depends on selected protocol
+        String registrationProtocol = getRegistrationConfiguration(KEY_REGISTRATION_PROTOCOL);
+        if (registrationProtocol.equalsIgnoreCase("HTTP")) {
+            defaultValue = REGISTRATION_DEFAULT_HTTP_CHANNEL;
+        } else if (registrationProtocol.equalsIgnoreCase("MQTT")) {
+            defaultValue = REGISTRATION_DEFAULT_MQTT_CHANNEL;
+        }
         if (!handleUndefinedProperty(key, value, registrationProperties, defaultValue)) {
             // Check if specified registration channel is supported
-            if (value.charAt(0) != '/') {
+            if (registrationProtocol.equalsIgnoreCase("HTTP") && value.charAt(0) != '/') {
                 postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \"" + key
                         + "\": using default \"" + defaultValue + "\"");
                 resetProperty(registrationProperties, key, defaultValue);
             }
             // TODO use regex or URI for more elaborated check
-            // TODO refine check: if protocol is MQTT, the channel does not need to start with "/"
         }
     }
     

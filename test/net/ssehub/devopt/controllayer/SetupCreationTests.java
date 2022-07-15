@@ -79,7 +79,13 @@ public class SetupCreationTests {
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_invalidDirectory.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_valid.cfg", DEFAULT_SETUP_NO_MODEL_STRING 
-                + "model.directory = ./testdata/model_db;"}
+                + "model.directory = ./testdata/model_db;"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "registrationProperties_mqtt.cfg", DEFAULT_SETUP_LOGGING_STRING
+                    + "registration.protocol = MQTT;"
+                    + "registration.port = 1883;"
+                    + "registration.url = tcp://broker.hivemq.com;"
+                    + "registration.channel = devoptregistration;"
+                    + DEFAULT_SETUP_MODEL_STRING},
             /*
              * TODO: incomplete configuration properties, wrong combinations, values the fail validation, more than a
              *       single args element
