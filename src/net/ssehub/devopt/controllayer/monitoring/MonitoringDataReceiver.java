@@ -144,15 +144,20 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
         logger.logInfo(ID, "Adding observable \"" + identifier + "\"");
         boolean observableAdded = false;
         try {
-            if (!observableInformation.containsKey(channel)) {                
-                MqttV3Client monitoringClient = new MqttV3Client(identifier, url, port, null, null);
-                monitoringClient.subscribe(channel, 2, this);
-                if (observableInformation.put(channel, monitoringClient) == null) {
-                    observableAdded = true;
+            if (!observableInformation.containsKey(channel)) {
+                if (url != null && url.startsWith("tcp://")) {                    
+                    MqttV3Client monitoringClient = new MqttV3Client(identifier, url, port, null, null);
+                    monitoringClient.subscribe(channel, 2, this);
+                    if (observableInformation.put(channel, monitoringClient) == null) {
+                        observableAdded = true;
+                    } else {
+                        // Should never be reached
+                        logger.logWarning(ID, "Adding observable \"" + identifier 
+                                + "\" replaced existing monitoring without key", "This should not happen");
+                    }
                 } else {
-                    // Should never be reached
-                    logger.logWarning(ID, "Adding observable \"" + identifier 
-                            + "\" replaced existing monitoring without key", "This should not happen");
+                    logger.logWarning(ID, "Monitoring of \"" + identifier + "\" not possible",
+                            "Protocol not support: " + url);
                 }
             } else {
                 logger.logWarning(ID, "Monitoring of \"" + identifier + "\" already established",
