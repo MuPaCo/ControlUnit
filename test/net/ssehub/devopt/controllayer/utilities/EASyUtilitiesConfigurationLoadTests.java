@@ -80,9 +80,13 @@ public class EASyUtilitiesConfigurationLoadTests extends AbstractEASyBasedTests 
             // Invalid configurations should be loaded successfully; testing their validity is a different issue
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "InvalidDevOptProject.ivml"), "DevOpt_E3_1_Modeling_Approach",
                 null},
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "InvalidIdentifierDevOptProject.ivml"),
+                "MonitoringDevOptProject", null},
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MinimalDevOptProject.ivml"), "MinimalDevOptProject", null},
-            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringDevOptProject.ivml"), "MonitoringDevOptProject",
-                null},
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringHttpDevOptProject.ivml"),
+                "MonitoringDevOptProject", null},
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringMqttDevOptProject.ivml"),
+                "MonitoringHiveBrokerDevOptProject", null},
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "ProjectMissingClosingBracket.ivml"), null,
                 "Loading configuration from file \"" + PROJECT_DIRECTORY_PATH
                     + "\\testdata\\ivml\\ProjectMissingClosingBracket.ivml\" failed"}

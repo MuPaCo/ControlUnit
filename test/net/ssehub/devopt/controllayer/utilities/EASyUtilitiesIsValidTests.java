@@ -65,8 +65,11 @@ public class EASyUtilitiesIsValidTests extends AbstractEASyBasedTests {
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "IdentificationDevOptProject.ivml"), true, null},
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "InvalidDevOptProject.ivml"), false,
                 "Checking validity of configuration \"DevOpt_E3_1_Modeling_Approach\" failed"},
+            // Invalid identifier prevents establishing monitoring, but is valid regarding the meta model (currently)
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "InvalidIdentifierDevOptProject.ivml"), true, null},
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MinimalDevOptProject.ivml"), true, null},
-            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringDevOptProject.ivml"), true, null}
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringHttpDevOptProject.ivml"), true, null},
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringMqttDevOptProject.ivml"), true, null}
     };
     
     /**

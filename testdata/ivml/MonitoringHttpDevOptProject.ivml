@@ -3,7 +3,7 @@ project MonitoringDevOptProject {
     import DevOpt_System;
     
     Identification entityIdentification = {
-        identifier = "System under Monitoring",
+        identifier = "SystemUnderMonitoring",
         host = "192.168.1.11",
         port = 1883
     };
@@ -19,7 +19,7 @@ project MonitoringDevOptProject {
     
     RuntimeDate entityMonitoring = {
         timestamp = null,
-        monitoringScope = "entity/monitoring/mqtt/topic@127.0.0.1:8883",
+        monitoringScope = "/http/context@127.0.0.1:80",
         value = entityPowerBalance,
         expressions = null
     };

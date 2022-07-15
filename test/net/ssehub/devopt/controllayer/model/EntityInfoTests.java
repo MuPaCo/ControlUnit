@@ -66,8 +66,6 @@ public class EntityInfoTests extends AbstractEASyBasedTests {
      */
     private static final Object[][] TEST_DATA = {
             {"EmptyProject.ivml", "EmptyProject", "No entity defined in configuration", null, null, -1, null, -1, null},
-            {"MinimalDevOptProject.ivml", "MinimalDevOptProject", "No identifier defined for entity", null, null, -1,
-                null, -1, null},
             {"EntityEmptyDefinitionDevOptProject.ivml", "EntityEmptyDefinitionDevOptProject",
                 "No identifier defined for entity", null, null, -1, null, -1, null},
             {"EntityEmptyIdentificationDescriptionDevOptProject.ivml",
@@ -77,9 +75,17 @@ public class EntityInfoTests extends AbstractEASyBasedTests {
                 "No identifier defined for entity", null, null, -1, null, -1, null},
             {"EntityIdentificationDevOptProject.ivml", "EntityIdentificationDevOptProject",
                 "No monitoring scope defined for entity", null, null, -1, null, -1, null},
-            {"MonitoringDevOptProject.ivml", "MonitoringDevOptProject", null, "System under Monitoring", "192.168.1.11",
-                1883, "127.0.0.1", 8883, "entity/monitoring/mqtt/topic"},
-            {"MonitoringHiveBrokerDevOptProject.ivml", "MonitoringHiveBrokerDevOptProject", null, "MonitoringViaHyve",
+            {"IdentificationDevOptProject.ivml", "IdentificationDevOptProject",
+                "No monitoring scope defined for entity", null, null, -1, null, -1, null},
+            // Invalid identifier prevents establishing monitoring, but is valid regarding the meta model (currently)
+            {"InvalidIdentifierDevOptProject.ivml", "MonitoringDevOptProject",
+                null, "System Under Monitoring", "192.168.1.11", 1883, "tcp://broker.hivemq.com", 1883,
+                "devopttestmonitoring"},
+            {"MinimalDevOptProject.ivml", "MinimalDevOptProject", "No identifier defined for entity", null, null, -1,
+                null, -1, null},
+            {"MonitoringHttpDevOptProject.ivml", "MonitoringDevOptProject", null, "SystemUnderMonitoring",
+                "192.168.1.11",  1883, "127.0.0.1", 80, "/http/context"},
+            {"MonitoringMqttDevOptProject.ivml", "MonitoringHiveBrokerDevOptProject", null, "MonitoringViaHyve",
                 "192.168.0.23", 1883, "tcp://broker.hivemq.com", 1883, "devopttestmonitoring"},
     };
     

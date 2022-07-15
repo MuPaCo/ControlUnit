@@ -57,7 +57,6 @@ public class ModelUtilitiesTests extends AbstractEASyBasedTests {
      */
     private static final Object[][] TEST_DATA = {
             {"EmptyProject.ivml", "EmptyProject", false, null, null, -1, null},
-            {"MinimalDevOptProject.ivml", "MinimalDevOptProject", true, null, null, -1, null},
             {"EntityEmptyDefinitionDevOptProject.ivml", "EntityEmptyDefinitionDevOptProject", true, null, null, -1,
                 null},
             {"EntityEmptyIdentificationDescriptionDevOptProject.ivml",
@@ -66,8 +65,16 @@ public class ModelUtilitiesTests extends AbstractEASyBasedTests {
                 -1, null},
             {"EntityIdentificationDevOptProject.ivml", "EntityIdentificationDevOptProject", true,
                 "System under Monitoring", "192.168.1.11", 1883, null},
-            {"MonitoringDevOptProject.ivml", "MonitoringDevOptProject", true, "System under Monitoring", "192.168.1.11",
-                1883, "entity/monitoring/mqtt/topic@127.0.0.1:8883"},
+            {"IdentificationDevOptProject.ivml", "MonitoringDevOptProject", true, "Some Test Entity", "192.168.1.11",
+                1883, null},
+            // Invalid identifier prevents establishing monitoring, but is valid regarding the meta model (currently)
+            {"InvalidIdentifierDevOptProject.ivml", "MonitoringDevOptProject", true, "System Under Monitoring",
+                "192.168.1.11", 1883, "devopttestmonitoring@tcp://broker.hivemq.com:1883"},
+            {"MinimalDevOptProject.ivml", "MinimalDevOptProject", true, null, null, -1, null},            
+            {"MonitoringHttpDevOptProject.ivml", "MonitoringDevOptProject", true, "SystemUnderMonitoring",
+                "192.168.1.11", 1883, "/http/context@127.0.0.1:80"},
+            {"MonitoringMqttDevOptProject.ivml", "MonitoringHiveBrokerDevOptProject", true, "MonitoringViaHyve",
+                "192.168.0.23", 1883, "devopttestmonitoring@tcp://broker.hivemq.com:1883"},
     };
     
     /**

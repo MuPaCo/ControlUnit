@@ -65,8 +65,10 @@ public class EASyUtilitiesConfigurationUnloadTests extends AbstractEASyBasedTest
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "IdentificationDevOptProject.ivml"), true, null},
             // Invalid configurations should be loaded successfully; testing their validity is a different issue
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "InvalidDevOptProject.ivml"), true, null},
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "InvalidIdentifierDevOptProject.ivml"), true, null},
             {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MinimalDevOptProject.ivml"), true, null},
-            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringDevOptProject.ivml"), true, null}
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringHttpDevOptProject.ivml"), true, null},
+            {new File(AllTests.TEST_IVML_FILES_DIRECTORY, "MonitoringMqttDevOptProject.ivml"), true, null}
     };
     
     /**

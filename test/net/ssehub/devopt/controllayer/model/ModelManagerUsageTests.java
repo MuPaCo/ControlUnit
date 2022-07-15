@@ -47,9 +47,10 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
             {"ProjectMissingClosingBracket.ivml", 0},
             {"InvalidDevOptProject.ivml", 0},
             {"EmptyProject.ivml", 0},
-            {"MonitoringHiveBrokerDevOptProject.ivml", 1},
-            {"MonitoringDevOptProject.ivml", 2},
-            {"MonitoringDevOptProject.ivml", 2}, /* Same count, if adding same model twice */
+            {"InvalidIdentifierDevOptProject.ivml", 0},
+            {"MonitoringHttpDevOptProject.ivml", 0}, // Currently, HTTP is not supported: no errors, but no info as well
+            {"MonitoringMqttDevOptProject.ivml", 1},
+            {"MonitoringMqttDevOptProject.ivml", 1}, // Same count, if adding same model twice
     };
     
     /**
