@@ -40,7 +40,6 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  * 
  * Data:
  *  Network connection for data caching with external data storage
- *  Network connection (client/publisher) for outgoing (aggregated) monitoring data
  * 
  */
 
@@ -115,7 +114,7 @@ public class Setup {
     public static final String KEY_REGISTRATION_CHANNEL = KEY_REGISTRATION_PREFIX + "channel";
     
     /**
-     * The prefix of all keys identifying a configuration property related to registration capabilities. 
+     * The prefix of all keys identifying a configuration property related to model capabilities. 
      */
     private static final String KEY_MODEL_PREFIX = "model.";
     
@@ -126,6 +125,40 @@ public class Setup {
      * guarantees that the directory always exists. 
      */
     public static final String KEY_MODEL_DIRECTORY = KEY_MODEL_PREFIX + "directory";
+    
+    /**
+     * The prefix of all keys identifying a configuration property related to aggregation capabilities. 
+     */
+    private static final String KEY_AGGREGATION_PREFIX = "aggregation.";
+    
+    /**
+     * The key identifying the configuration property for defining the type of protocol to use for sending aggregated
+     * runtime data from the local elements to a desired receiver (database, dashboard, higher-level element, etc.). The
+     * associated value to this key in this setup is either a valid user-defined protocol or <code>null</code>, if
+     * aggregated data must not be send.
+     */
+    public static final String KEY_AGGREGATION_PROTOCOL = KEY_AGGREGATION_PREFIX + "protocol";
+    
+    /**
+     * The key identifying the configuration property for defining the URL to use for establishing the network
+     * connection for sending aggregated runtime data. The associated value to this key in this setup is either a valid
+     * user-defined protocol or <code>null</code>, if aggregated data must not be send.
+     */
+    public static final String KEY_AGGREGATION_URL = KEY_AGGREGATION_PREFIX + "url";
+    
+    /**
+     * The key identifying the configuration property for defining the port number to use for establishing the network
+     * connection for sending aggregated runtime data. The associated value to this key in this setup is either a valid
+     * user-defined port number or <code>null</code>, if aggregated data must not be send.
+     */
+    public static final String KEY_AGGREGATION_PORT = KEY_AGGREGATION_PREFIX + "port";
+    
+    /**
+     * The key identifying the configuration property for defining the channel name to use for establishing the network
+     * connection for sending aggregated runtime data. The associated value to this key in this setup is either a valid
+     * user-defined protocol or <code>null</code>, if aggregated data must not be send.
+     */
+    public static final String KEY_AGGREGATION_CHANNEL = KEY_AGGREGATION_PREFIX + "channel";
     
     // checkstyle: resume declaration order check (public before private; following order eases filtering properties)
     // [End]-------------------------------------------------------------------------------------------------------[End]
@@ -185,6 +218,7 @@ public class Setup {
     private Properties loggingProperties;
     private Properties registrationProperties;
     private Properties modelProperties;
+    private Properties aggregationProperties;
     
     private List<String> postponedWarnings;
     
@@ -201,6 +235,7 @@ public class Setup {
         loggingProperties = new Properties();
         registrationProperties = new Properties();
         modelProperties = new Properties();
+        aggregationProperties = new Properties();
         postponedWarnings = new ArrayList<String>();
         File configurationFile = getConfigurationFile(configurationFilePath);
         if (configurationFile != null) {
@@ -289,6 +324,8 @@ public class Setup {
                 registrationProperties.put(propertyKey, propertyValue);
             } else if (propertyKey.startsWith(KEY_MODEL_PREFIX)) {
                 modelProperties.put(propertyKey, propertyValue);
+            } else if (propertyKey.startsWith(KEY_AGGREGATION_PREFIX)) {
+                aggregationProperties.put(propertyKey, propertyValue);
             } else {
                 // At this point, the property key has an unknown prefix; hence, it will be ignored
                 postponedWarnings.add("Ignoring unknown configuration property \"" + propertyKey + "\"");
@@ -304,6 +341,7 @@ public class Setup {
         validateLoggingProperties();
         validateRegistrationProperties();
         validateModelProperties();
+        validateAggregationProperties();
     }
     
     /**
@@ -477,6 +515,75 @@ public class Setup {
     }
     
     /**
+     * Validates the {@link #aggregationProperties} and their values.
+     */
+    private void validateAggregationProperties() {
+        // Aggregation configuration properties are optional; hence, either no properties available or all must be valid
+        if (!aggregationProperties.isEmpty()) {
+            String[] aggregationPropertiesKeys = {KEY_AGGREGATION_PROTOCOL, KEY_AGGREGATION_URL, KEY_AGGREGATION_PORT,
+                KEY_AGGREGATION_CHANNEL};
+            if (aggregationProperties.size() == aggregationPropertiesKeys.length) {
+                boolean aggregationPropertiesValid = true;
+                int aggregationPropertiesCounter = 0;
+                String key;
+                String value;
+                while (aggregationPropertiesValid && aggregationPropertiesCounter < aggregationPropertiesKeys.length) {
+                    key = aggregationPropertiesKeys[aggregationPropertiesCounter];
+                    value = getAggregationConfiguration(key);
+                    switch(key) {
+                    case KEY_AGGREGATION_PROTOCOL:
+                        // Validate protocol for sending aggregated data
+                        if (!value.equalsIgnoreCase("MQTT") && !value.equalsIgnoreCase("HTTP")) {
+                            postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
+                                    + key + "\": no sending of aggregation data");
+                            aggregationPropertiesValid = false;
+                        }
+                        break;
+                    case KEY_AGGREGATION_URL:
+                        // Validate URL for sending aggregated data
+                        
+                        // Check if specified registration URL is supported
+                        // TODO use regex?
+                        
+                        break;
+                    case KEY_AGGREGATION_PORT:
+                        // Validate port for sending aggregated data
+                        int intValue = -1;
+                        try {
+                            intValue = Integer.parseInt(value);
+                        } catch (NumberFormatException e) {
+                            /*
+                             * Nothing to do here as in case of this exception, the next check will fail anyway due to
+                             * the default intValue of -1.
+                             */
+                        }
+                        if (intValue < 0 || intValue > 65535) {
+                            postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
+                                    + key + "\": no sending of aggregation data");
+                            aggregationPropertiesValid = false;
+                        }
+                        break;
+                    case KEY_AGGREGATION_CHANNEL:
+                        // Validate channel for sending aggregated data
+                        
+                        // TODO use regex or URI for checks
+                        
+                        break;
+                    default:
+                        
+                        break;
+                    }
+                    aggregationPropertiesCounter++;
+                }
+            } else {
+                aggregationProperties.clear();
+                postponedWarnings.add("Ignoring configuration properties \"" + KEY_AGGREGATION_PREFIX 
+                        + "*\" due to incorrect number");
+            }
+        }
+    }
+    
+    /**
      * Checks whether the given value is <code>null</code> or blank. If this is the case, this method adds the given
      * default value for the given key to the given property set.
      * 
@@ -569,6 +676,17 @@ public class Setup {
     }
     
     /**
+     * Returns the setup value for the aggregation configuration property identified by the given key.
+     * 
+     * @param key the key of the aggregation configuration property for which the loaded setup value should be returned
+     * @return the respective setup value or <code>null</code>, if the given key is not present in the aggregation
+     *         property set
+     */
+    public String getAggregationConfiguration(String key) {
+        return getConfiguration(modelProperties, key);
+    }
+    
+    /**
      * Returns the setup value for the configuration property in the given property set identified by the given key.
      *
      * @param properties the property set to search in for the given key
@@ -613,7 +731,8 @@ public class Setup {
         int logLinesOffset = 0;
         logLinesOffset = addLogLines(logLines, logLinesOffset, loggingProperties);
         logLinesOffset = addLogLines(logLines, logLinesOffset, registrationProperties);
-        addLogLines(logLines, logLinesOffset, modelProperties);
+        logLinesOffset = addLogLines(logLines, logLinesOffset, modelProperties);
+        addLogLines(logLines, logLinesOffset, aggregationProperties);
 
         return logLines;
     }
