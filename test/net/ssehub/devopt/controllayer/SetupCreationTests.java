@@ -75,9 +75,19 @@ public class SetupCreationTests {
             {"", DEFAULT_SETUP_STRING},
             {"  ", DEFAULT_SETUP_STRING},
             {"notafilepath", "Invalid configuration file path: \"notafilepath\""},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete.cfg", DEFAULT_SETUP_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_valid.cfg", DEFAULT_SETUP_STRING
+                + "aggregation.channel = aggregation;"
+                + "aggregation.protocol = MQTT;"
+                + "aggregation.url = tcp://some.broker;"
+                + "aggregation.port = 1883;"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "description.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "empty.cfg", "Loaded properties are empty"},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "minimal.cfg", "logging.debug = n;logging.standard = n;"
+                + DEFAULT_SETUP_REGISTRATION_STRING
+                + DEFAULT_SETUP_MODEL_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_invalidDirectory.cfg", DEFAULT_SETUP_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_valid.cfg", DEFAULT_SETUP_NO_MODEL_STRING 
                 + "model.directory = ./testdata/model_db;"},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "registrationProperties_mqtt.cfg", DEFAULT_SETUP_LOGGING_STRING

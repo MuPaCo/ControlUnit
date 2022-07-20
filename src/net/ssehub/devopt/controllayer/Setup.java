@@ -242,9 +242,10 @@ public class Setup {
             setProperties(configurationFile);
         }
         /*
-         * Validation sets default property values either, if property values of the given configuration file are not
-         * supported, or, if no property value is set. Hence, validation automatically ensures default property values
-         * also, if no configuration file is available and setting the properties was not called above.
+         * Validation sets default property values (for mandatory properties) either, if property values of the given
+         * configuration file are not supported, or, if no property value is set. Hence, validation automatically
+         * ensures default property values also, if no configuration file is available and setting the properties was
+         * not called above.
          */
         validateProperties();
     }
@@ -518,33 +519,40 @@ public class Setup {
      * Validates the {@link #aggregationProperties} and their values.
      */
     private void validateAggregationProperties() {
-        // Aggregation configuration properties are optional; hence, either no properties available or all must be valid
-        if (!aggregationProperties.isEmpty()) {
+        if (isBlank(aggregationProperties)) {
+            // Although being blank, delete all properties completely to avoid inconsistencies on usage
+            aggregationProperties.clear();
+        } else {
             String[] aggregationPropertiesKeys = {KEY_AGGREGATION_PROTOCOL, KEY_AGGREGATION_URL, KEY_AGGREGATION_PORT,
                 KEY_AGGREGATION_CHANNEL};
-            if (aggregationProperties.size() == aggregationPropertiesKeys.length) {
-                boolean aggregationPropertiesValid = true;
-                int aggregationPropertiesCounter = 0;
-                String key;
-                String value;
-                while (aggregationPropertiesValid && aggregationPropertiesCounter < aggregationPropertiesKeys.length) {
-                    key = aggregationPropertiesKeys[aggregationPropertiesCounter];
-                    value = getAggregationConfiguration(key);
+            boolean aggregationPropertiesValid = true;
+            int aggregationPropertiesCounter = 0;
+            String key;
+            String value;
+            while (aggregationPropertiesValid && aggregationPropertiesCounter < aggregationPropertiesKeys.length) {
+                key = aggregationPropertiesKeys[aggregationPropertiesCounter];
+                value = getAggregationConfiguration(key);
+                if (value == null || value.isBlank()) {
+                    /*
+                     * Check 'isBlank(aggregationProperties)' above must have returned false, hence, there is at least
+                     * one property with an actual value. Finding 'null' or 'blank' now means properties are incomplete.
+                     */
+                    postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
+                            + key + "\": incomplete aggregation configuration yields no distribution");
+                    aggregationPropertiesValid = false;
+                } else {                    
                     switch(key) {
                     case KEY_AGGREGATION_PROTOCOL:
                         // Validate protocol for sending aggregated data
                         if (!value.equalsIgnoreCase("MQTT") && !value.equalsIgnoreCase("HTTP")) {
                             postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
-                                    + key + "\": no sending of aggregation data");
+                                    + key + "\": no distribution of aggregation data");
                             aggregationPropertiesValid = false;
                         }
                         break;
                     case KEY_AGGREGATION_URL:
                         // Validate URL for sending aggregated data
-                        
-                        // Check if specified registration URL is supported
-                        // TODO use regex?
-                        
+                        // TODO Check if specified aggregation URL is supported; use regex?
                         break;
                     case KEY_AGGREGATION_PORT:
                         // Validate port for sending aggregated data
@@ -552,35 +560,53 @@ public class Setup {
                         try {
                             intValue = Integer.parseInt(value);
                         } catch (NumberFormatException e) {
-                            /*
-                             * Nothing to do here as in case of this exception, the next check will fail anyway due to
-                             * the default intValue of -1.
-                             */
+                            // In case of this exception, next check will fail anyway due to default 'intValue' of '-1'
                         }
                         if (intValue < 0 || intValue > 65535) {
                             postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
-                                    + key + "\": no sending of aggregation data");
+                                    + key + "\": no distribution of aggregation data");
                             aggregationPropertiesValid = false;
                         }
                         break;
                     case KEY_AGGREGATION_CHANNEL:
                         // Validate channel for sending aggregated data
-                        
                         // TODO use regex or URI for checks
-                        
                         break;
                     default:
-                        
+                        postponedWarnings.add("Ignoring unknown aggregation configuration property \"" + key + "\"");
                         break;
                     }
-                    aggregationPropertiesCounter++;
                 }
-            } else {
+                aggregationPropertiesCounter++;
+            }
+            // In case of invalid properties, delete them completely to avoid inconsistencies on usage
+            if (!aggregationPropertiesValid) {
                 aggregationProperties.clear();
-                postponedWarnings.add("Ignoring configuration properties \"" + KEY_AGGREGATION_PREFIX 
-                        + "*\" due to incorrect number");
             }
         }
+    }
+    
+    /**
+     * Checks whether the given properties are blank. This is the case, if the given instance is <code>null</code>,
+     * <i>empty</i>, or all keys map to <code>null</code> or a blank string. Hence, if the given instance contains at
+     * least one key, which maps to a non-<code>null</code> and non-blank value, the properties are not blank.
+     *  
+     * @param properties the properties to check for being blank
+     * @return <code>true</code>, if the given properties are blank; <code>false</code> otherwise
+     */
+    private boolean isBlank(Properties properties) {
+        boolean isBlank = true;
+        if (properties != null && !properties.isEmpty()) {
+            Enumeration<Object> propertyKeys = properties.keys();
+            String propertyValue;
+            while (isBlank && propertyKeys.hasMoreElements()) {
+                propertyValue = (String) properties.get(propertyKeys.nextElement());
+                if (propertyValue != null && !propertyValue.isBlank()) {
+                    isBlank = false;
+                }
+            }
+        }
+        return isBlank;
     }
     
     /**
@@ -683,7 +709,7 @@ public class Setup {
      *         property set
      */
     public String getAggregationConfiguration(String key) {
-        return getConfiguration(modelProperties, key);
+        return getConfiguration(aggregationProperties, key);
     }
     
     /**
@@ -725,7 +751,8 @@ public class Setup {
      * @return a textual representation of this setup instance for logging
      */
     public String[] toLogLines() {
-        int logLinesLength = loggingProperties.size() + registrationProperties.size() + modelProperties.size();
+        int logLinesLength = loggingProperties.size() + registrationProperties.size() + modelProperties.size()
+                + aggregationProperties.size();
         String[] logLines = new String[logLinesLength];
         
         int logLinesOffset = 0;
