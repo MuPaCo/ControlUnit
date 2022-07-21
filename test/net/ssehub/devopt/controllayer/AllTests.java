@@ -25,6 +25,7 @@ import org.junit.runners.Suite.SuiteClasses;
 import net.ssehub.devopt.controllayer.model.AbstractModelManagerTests;
 import net.ssehub.devopt.controllayer.model.EntityInfoTests;
 import net.ssehub.devopt.controllayer.model.ModelManagerUsageTests;
+import net.ssehub.devopt.controllayer.monitoring.AggregatorSetupTests;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverCallbackAdditionTests;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverCallbackRemovalTests;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiverObservableAdditionTests;
@@ -76,6 +77,7 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
     ModelManagerUsageTests.class,
     EntityInfoTests.class,
     // Monitoring tests
+    AggregatorSetupTests.class,
     MonitoringDataReceiverCallbackAdditionTests.class,
     MonitoringDataReceiverCallbackRemovalTests.class,
     MonitoringDataReceiverObservableAdditionTests.class,
