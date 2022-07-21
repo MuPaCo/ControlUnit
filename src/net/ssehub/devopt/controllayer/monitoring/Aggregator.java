@@ -36,14 +36,14 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
 public class Aggregator implements MonitoringDataReceptionCallback, HttpResponseCallback {
     
     /**
-     * The identifier of this class, e.g. for printing messages.
-     */
-    private static final String ID = Aggregator.class.getSimpleName();
-        
-    /**
      * The singleton instance of this class.
      */
-    private static Aggregator instance;
+    protected static Aggregator instance; // Keep 'protected' to enable usage tests
+    
+    /**
+     * The identifier of this class, e.g. for printing messages.
+     */
+    private static final String ID = Aggregator.class.getSimpleName();    
     
     /**
      * The local reference to the global {@link Logger}.
