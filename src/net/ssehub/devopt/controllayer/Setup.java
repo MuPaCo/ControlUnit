@@ -702,11 +702,22 @@ public class Setup {
     }
     
     /**
+     * Checks whether aggregation configuration properties are available.
+     * 
+     * @return <code>true</code>, if all aggregation configuration properties are available; <code>false</code>
+     *         otherwise
+     */
+    public boolean hasAggregationConfiguration() {
+        return !aggregationProperties.isEmpty();
+    }
+    
+    /**
      * Returns the setup value for the aggregation configuration property identified by the given key.
      * 
      * @param key the key of the aggregation configuration property for which the loaded setup value should be returned
      * @return the respective setup value or <code>null</code>, if the given key is not present in the aggregation
      *         property set
+     * @see #hasAggregationConfiguration()
      */
     public String getAggregationConfiguration(String key) {
         return getConfiguration(aggregationProperties, key);
