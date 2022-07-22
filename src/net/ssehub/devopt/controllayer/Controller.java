@@ -18,6 +18,8 @@ import java.io.OutputStream;
 
 import net.ssehub.devopt.controllayer.model.ModelException;
 import net.ssehub.devopt.controllayer.model.ModelManager;
+import net.ssehub.devopt.controllayer.monitoring.Aggregator;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringException;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
@@ -65,6 +67,17 @@ public class Controller {
         try {
             EASyUtilities.INSTANCE.startEASyComponents();
         } catch (EASyUtilitiesException e) {
+            logger.logException(ID, e);
+            System.exit(1);
+        }
+        /*
+         * Start the aggregator, which is a passive component. It will become active, if it receives monitoring data
+         * propagated by the monitoring data receiver. As that receiver relies on the models managed by the model
+         * manager in turn, start the aggregator before the model manager and its associated components.
+         */
+        try {
+            Aggregator.setUp(setup);
+        } catch (MonitoringException e) {
             logger.logException(ID, e);
             System.exit(1);
         }
