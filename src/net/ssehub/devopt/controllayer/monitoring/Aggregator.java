@@ -268,7 +268,7 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
                 } else if (distributionHttpRequestUriString != null) {
                     httpClient = new HttpClient(ID + "Client", null, null, null, -1, null, null);
                     httpClient.sendPostAsync(distributionHttpRequestUriString, distributionHttpRequestHeaders,
-                            aggregatedData, 1000, this);
+                            aggregatedData, 2000, this);
                 } else {
                     logger.logWarning(ID, "Distributing aggregated data failed", "No network client available");
                 }
@@ -294,6 +294,9 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
     public void responseArrived(HttpResponse<String> response, NetworkException exception) {
         logger.logDebug(ID, "Aggregated data distribution response received", "Response: " + response,
                 "Excpetion: " + exception);
+        if (exception != null) {
+            logger.logException(ID, exception);
+        }
         // Nothing to do here
     }
     
