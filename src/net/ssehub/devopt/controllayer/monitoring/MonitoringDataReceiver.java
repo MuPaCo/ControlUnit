@@ -24,7 +24,6 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import net.ssehub.devopt.controllayer.model.EntityInfo;
-import net.ssehub.devopt.controllayer.model.ModelException;
 import net.ssehub.devopt.controllayer.model.ModelManager;
 import net.ssehub.devopt.controllayer.network.HttpRequest;
 import net.ssehub.devopt.controllayer.network.HttpRequestCallback;
@@ -231,7 +230,7 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      */
     @Override
     public void connectionLost(Throwable cause) {
-        logger.logException(ID, new ModelException("Monitoring connection lost", cause));
+        logger.logException(ID, new MonitoringException("Monitoring connection lost", cause));
         // TODO realize re-connect
     }
 
