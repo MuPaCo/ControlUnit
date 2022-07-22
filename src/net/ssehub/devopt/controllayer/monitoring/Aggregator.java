@@ -182,7 +182,7 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
                 } 
             } else if (protocol.equalsIgnoreCase("HTTP")) {
                 distributionHttpRequestUriString = url + distributionChannel;
-                distributionHttpRequestHeaders = new String[0]; // TODO Add correct headers, if required
+                distributionHttpRequestHeaders = null; // TODO Add correct headers, if required
                 distributeAggregationResult = true;
                 logger.logDebug(ID, "Aggregator HTTP client properties defined",
                         "Request URI: " + distributionHttpRequestUriString,
@@ -265,7 +265,7 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
             try {
                 if (mqttClient != null) {                    
                     mqttClient.publish(distributionChannel, 2, aggregatedData.getBytes());
-                } else if (distributionHttpRequestUriString != null && distributionHttpRequestHeaders != null) {
+                } else if (distributionHttpRequestUriString != null) {
                     httpClient = new HttpClient(ID + "Client", null, null, null, -1, null, null);
                     httpClient.sendPostAsync(distributionHttpRequestUriString, distributionHttpRequestHeaders,
                             aggregatedData, 1000, this);
