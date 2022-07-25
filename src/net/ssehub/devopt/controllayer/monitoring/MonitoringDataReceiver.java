@@ -169,7 +169,7 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
     }
     
     /**
-     * Closes the network connection for the given channel removes all related date from this receiver.
+     * Closes the network connection for the given channel and removes all related date from this receiver.
      * 
      * @param channel the channel (MQTT topic name or HTTP server context name) of the entity's monitoring scope as
      *        defined by its {@link EntityInfo} instance
