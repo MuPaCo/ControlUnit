@@ -99,7 +99,8 @@ public class ModelManager implements ModelReceptionCallback {
      * Returns the singleton instance of this class. <b>Note</b> that it is required to call {@link #setUp(Setup)}
      * exactly once before calling this method successfully.
      * 
-     * @return the singleton instance of this class, or <code>null</code>, if it was not set up yet
+     * @return the singleton instance of this class, or <code>null</code>, if it was not set up yet or it was stopped
+     *         already
      */
     public static ModelManager getInstance() {
         return instance;
@@ -269,7 +270,7 @@ public class ModelManager implements ModelReceptionCallback {
      * 
      * @throws ModelException if activating the network connection of the model receiver fails
      */
-    public void run() throws ModelException {
+    public void start() throws ModelException {
         // Establish monitoring for all available models already loaded during setup
         Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
         EntityInfo entityInfo;
@@ -281,6 +282,35 @@ public class ModelManager implements ModelReceptionCallback {
         }
         // Start model receiver to receive registration requests
         modelReceiver.start();
+    }
+    
+    /**
+     * Stops the internal {@link ModelReceiver}, the monitoring of all known entities, and releases all resources
+     * including this instances.
+     * 
+     * @throws ModelException if stopping the model receiver fails
+     */
+    public void stop() throws ModelException {
+        // Stop model receiver to reject any further incoming registration requests
+        modelReceiver.stop();
+        modelReceiver = null;
+        // Stop monitoring of all entities
+        Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
+        EntityInfo currentEntityInfo;
+        while (entityInformationKeysIterator.hasNext()) {
+            currentEntityInfo = entityInformation.get(entityInformationKeysIterator.next());
+            if (!MonitoringDataReceiver.INSTANCE.removeObservable(currentEntityInfo.getMonitoringChannel())) {
+                logger.logError(ID, "Stopping monitoring of " + currentEntityInfo.toString() + " failed",
+                        "No further actions possible");
+            }
+        }
+        // Release remaining resources and delete references
+        entityInformation.clear();
+        entityInformation = null;
+        modelDirectory = null;
+        fileUtilities = null;
+        logger = null;
+        instance = null;
     }
 
     @Override

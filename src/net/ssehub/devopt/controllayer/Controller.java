@@ -50,7 +50,7 @@ public class Controller {
      * 
      * @param args the command-line arguments as supplied to {@link #main(String[])}
      */
-    private Controller(String[] args) {
+    public Controller(String[] args) {
         /*
          * The very first call must always be loading the setup, which includes configuring the logger.
          * Hence, do not call the logger before loading the setup.
@@ -64,6 +64,7 @@ public class Controller {
          * Next, start the EASy-Producer components before any other components, which may rely on the provided utility
          * methods.
          */
+        logger.logInfo(ID, "Starting EASy-Producer components");
         try {
             EASyUtilities.INSTANCE.startEASyComponents();
         } catch (EASyUtilitiesException e) {
@@ -75,6 +76,7 @@ public class Controller {
          * propagated by the monitoring data receiver. As that receiver relies on the models managed by the model
          * manager in turn, start the aggregator before the model manager and its associated components.
          */
+        logger.logInfo(ID, "Creating aggregator");
         try {
             Aggregator.setUp(setup);
         } catch (MonitoringException e) {
@@ -85,14 +87,36 @@ public class Controller {
          * Start the model management, which also creates the model receiver and any connections to the EASy-Producer
          * components started above.
          */
+        logger.logInfo(ID, "Starting model manager and monitoring");
         try {
             ModelManager.setUp(setup);
             modelManager = ModelManager.getInstance();
-            modelManager.run();
+            modelManager.start();
         } catch (ModelException e) {
             logger.logException(ID, e);
             System.exit(1);
         }
+    }
+    
+    /**
+     * Stops this instance by stopping all internal components and releasing associated resources.
+     * 
+     * @return <code>true</code>, if stopping this instance was successful; <code>false</code> otherwise
+     */
+    public boolean stop() {
+        boolean controllerStopped = false;
+        try {
+            logger.logInfo(ID, "Stopping model manager and monitoring");
+            modelManager.stop(); // This also stops the model receiver and the monitoring data receiver
+            logger.logInfo(ID, "Deleting aggregator");
+            Aggregator.tearDown();
+            logger.logInfo(ID, "Stopping EASy-Producer components");
+            EASyUtilities.INSTANCE.stopEASyComponents();
+            controllerStopped = true;
+        } catch (ModelException | MonitoringException | EASyUtilitiesException e) {
+            logger.logException(ID, e);
+        }
+        return controllerStopped;
     }
     
     /**
