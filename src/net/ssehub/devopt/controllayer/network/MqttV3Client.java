@@ -133,18 +133,16 @@ public class MqttV3Client extends AbstractNetworkClient {
 
     /**
      * Publishes the given message (payload) under the given topic to the MQTT broker defined by the parameters given to
-     * this clients constructor. For this purpose, this client first connects to its MQTT broker, then publishes the
-     * message, and, finally, disconnects again from the broker.<br>
+     * this clients constructor.<br>
      * <br>
-     * <b>Note</b> that the client is not closed and, hence, can be reused for future publishing to its broker.
+     * <b>Note</b> that this method connects the client first, if it is not already connected.
      * 
      * @param topic the MQTT topic under which the given message will be published; must neither be <code>null</code>
      *        nor blank
      * @param qos the quality of message delivery; must be <i>at most once</i> (0), <i>at least once</i> (1), or
      *        <i>exactly once</i> (2)
      * @param payload the message to publish
-     * @throws NetworkException if connecting or disconnecting this client, or publishing the message fails
-     * @see #close()
+     * @throws NetworkException if connecting this client, or publishing the message fails
      */
     public void publish(String topic, int qos, byte[] payload) throws NetworkException {
         if (topic == null) {
@@ -159,14 +157,15 @@ public class MqttV3Client extends AbstractNetworkClient {
         MqttMessage message = new MqttMessage(payload);
         message.setQos(qos);        
         try {
-            connect();
+            // Establish the connection first, if not already done
+            if (!isConnected()) {
+                connect();
+            }
             client.publish(topic, message);
             logger.logDebug(ID, "\"" + getId() + "\" published to \"" + topic + "\"@\"" + broker + "\"");
-        } catch (NetworkException | MqttException e) {
+        } catch (MqttException e) {
             throw new NetworkException("Publishing by MQTT client \"" + getId() + "\" to topic \"" + topic 
                     + "\" at broker \"" + broker + "\" failed", e);
-        } finally {            
-            disconnect();
         }
     }
     
@@ -175,16 +174,13 @@ public class MqttV3Client extends AbstractNetworkClient {
      * constructor. The given callback is set as the element to inform about new messages published to the subscribed
      * topic.<br>
      * <br>
-     * <b>Note</b> that calling this method for an already connected client triggers its disconnection before connecting
-     * and subscribing again.
+     * <b>Note</b> that this method connects the client first, if it is not already connected.
      *  
      * @param topic the topic to which this client will be subscribed
      * @param qos the quality of message delivery ranging between <i>at most once</i> (0), <i>at least once</i> (1), and
      *        <i>exactly once</i> (2)
      * @param callback the instance to call back, if this client receives a new message on the subscribed topic
-     * @throws NetworkException if connecting or disconnecting this client, or subscribing to the topic fails
-     * @see #isConnected()
-     * @see #disconnect()
+     * @throws NetworkException if connecting this client, or subscribing to the topic fails
      */
     public void subscribe(String topic, int qos, MqttCallback callback) throws NetworkException {
         if (topic == null) {
@@ -197,15 +193,14 @@ public class MqttV3Client extends AbstractNetworkClient {
             throw new NetworkException("Invalid MQTT callback: \"null\"");
         }
         try {
-            // Restart the connection, e.g., if this method is called multiple times
-            if (isConnected()) {
-                disconnect();
-            }
             client.setCallback(callback);
-            connect();
+            // Establish the connection first, if not already done
+            if (!isConnected()) {
+                connect();
+            }
             client.subscribe(topic, qos);
             logger.logDebug(ID, "\"" + getId() + "\" subscribed to \"" + topic + "\"@\"" + broker + "\"");
-        } catch (NetworkException | MqttException e) {
+        } catch (MqttException e) {
             throw new NetworkException("Subscribing MQTT client \"" + getId() + "\" to topic \"" + topic 
                     + "\" at broker \"" + broker + "\" failed", e);
         }
@@ -217,7 +212,7 @@ public class MqttV3Client extends AbstractNetworkClient {
      * @throws NetworkException if connecting this client fails
      * @see #isConnected()
      */
-    private void connect() throws NetworkException { 
+    public void connect() throws NetworkException { 
         if (!isConnected()) {
             try {
                 client.connect(connectionOptions);
