@@ -324,7 +324,7 @@ public class EASyUtilities {
             logger.logDebug(ID, "Unloading core components");
             easyLoader.shutdown();
             
-            logger.logDebug(ID, "Deletin runtime resources");
+            logger.logDebug(ID, "Deleting runtime resources");
             deleteRuntimeResources();
             
             // Track successful stop
