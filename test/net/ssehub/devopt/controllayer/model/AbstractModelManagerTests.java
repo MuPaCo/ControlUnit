@@ -80,8 +80,9 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
                 testSetup = new Setup(MODEL_MANAGER_TEST_CONFIGURATION_PATH);
                 ModelManager.setUp(testSetup);
                 testModelManagerInstance = ModelManager.getInstance();
+                testModelManagerInstance.start();
             } catch (SetupException | ModelException e) {
-                fail("Unexpected error while creating test model manager instance", e);
+                fail("Creating test model manager instance failed unexpectedly", e);
             }
         }
     }
@@ -103,7 +104,7 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
                             + "\"");
                     FileUtilities.INSTANCE.delete(modelDirectory);
                 } catch (FileUtilitiesException e) {
-                    Logger.INSTANCE.logException(ID, e);
+                    fail("Deleting test model directory failed unexpectedly", e);
                 }
             }
         }
@@ -111,7 +112,7 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
             try {
                 testModelManagerInstance.stop();
             } catch (ModelException e) {
-                Logger.INSTANCE.logException(ID, e);
+                fail("Deleting test model manager instance failed unexpectedly", e);
             }
         }
     }
