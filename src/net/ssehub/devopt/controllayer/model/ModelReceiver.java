@@ -272,13 +272,13 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
                 logger.logException(ID, exception);
             }
         } else {
-            logger.logInfo(ID, "HTTP request arrived");
+            logger.logDebug(ID, "New HTTP request arrived");
             informCallback(request.getBody());
             int responseCode = 200; // "OK"
             String responseBody = "Registration received";
             // TODO add correct response headers
             response = new HttpResponse(null, responseCode, responseBody);
-            logger.logInfo(ID, "HTTP response", response.toString());
+            logger.logDebug(ID, "HTTP response", response.toString());
         }
         return response;
     }
