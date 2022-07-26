@@ -16,6 +16,7 @@ package net.ssehub.devopt.controllayer.scenarios;
 
 import java.io.File;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import net.ssehub.devopt.controllayer.AllTests;
@@ -91,6 +92,18 @@ public abstract class AbstractScenario {
      */
     @Test
     public abstract void testScenarioResult();
+    
+    /**
+     * Prints the identifier of the specific scenario.
+     * 
+     * @see #getId()
+     */
+    @Before
+    public void printHeader() {
+        System.out.println("\n##############");
+        System.out.println("# " + getId() + " #");
+        System.out.println("##############\n");
+    }
     
     /**
      * Returns the identifier of the specific scenario.
