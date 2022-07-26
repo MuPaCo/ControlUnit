@@ -18,12 +18,15 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
 
+import org.junit.AfterClass;
+
 import net.ssehub.devopt.controllayer.AbstractEASyBasedTests;
 import net.ssehub.devopt.controllayer.AllTests;
 import net.ssehub.devopt.controllayer.Setup;
 import net.ssehub.devopt.controllayer.SetupException;
 import net.ssehub.devopt.controllayer.utilities.FileUtilities;
 import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
+import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
  * This abstract class realizes preparation, utility, and post-processing methods, which are necessary for tests
@@ -42,6 +45,11 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
      */
     protected static ModelManager testModelManagerInstance;
 
+    /**
+     * The identifier of this class, e.g., for logging messages. 
+     */
+    private static final String ID = AbstractModelManagerTests.class.getSimpleName();
+    
     /**
      * The constant path to the directory containing test configuration files. This path ends with a
      * {@link File#separator}. 
@@ -63,7 +71,8 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
     /**
      * Constructs a new {@link AbstractModelManagerTests} instance. In particular, if this constructor is called the
      * first time, it creates the {@link #testModelManagerInstance} using the {@link #testSetup} constructed with the
-     * {@link #MODEL_MANAGER_TEST_CONFIGURATION_PATH}. Calling this constructor multiple times has no further effect.
+     * {@link #MODEL_MANAGER_TEST_CONFIGURATION_PATH}. Calling this constructor multiple times without
+     * {@link #tearDown()} has no further effect.
      */
     protected AbstractModelManagerTests() {
         if (testModelManagerInstance == null) {            
@@ -83,18 +92,26 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
      * 
      * @see AllTests#tearDown()
      */
-    public static void deleteSetupArtifacts() {
+    @AfterClass
+    public static void tearDown() {
         if (testSetup != null) {            
             String modelDirectoryPath = testSetup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY);
             if (modelDirectoryPath != null) {
                 File modelDirectory = new File(modelDirectoryPath);
                 try {
-                    System.out.println("Deleting test model directory \"" + modelDirectory.getAbsolutePath() + "\"");
+                    Logger.INSTANCE.logInfo(ID, "Deleting test model directory \"" + modelDirectory.getAbsolutePath()
+                            + "\"");
                     FileUtilities.INSTANCE.delete(modelDirectory);
                 } catch (FileUtilitiesException e) {
-                    System.out.println("Deleting test model directory failed; see trace below");
-                    e.printStackTrace();
+                    Logger.INSTANCE.logException(ID, e);
                 }
+            }
+        }
+        if (testModelManagerInstance != null) {
+            try {
+                testModelManagerInstance.stop();
+            } catch (ModelException e) {
+                Logger.INSTANCE.logException(ID, e);
             }
         }
     }

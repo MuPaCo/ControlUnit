@@ -16,13 +16,11 @@ package net.ssehub.devopt.controllayer;
 
 import java.io.File;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
-import net.ssehub.devopt.controllayer.model.AbstractModelManagerTests;
 import net.ssehub.devopt.controllayer.model.EntityInfoTests;
 import net.ssehub.devopt.controllayer.model.ModelManagerUsageTests;
 import net.ssehub.devopt.controllayer.monitoring.AggregatorHttpUsageTests;
@@ -125,17 +123,6 @@ public class AllTests {
     @BeforeClass
     public static void setUp() {
         Logger.INSTANCE.addOutputStream(System.out, LogLevel.DEBUG);
-    }
-    
-    /**
-     * Performs some final clean-up after all test classes of this suite are executed. This includes:
-     * <ul>
-     * <li>{@link AbstractModelManagerTests#deleteSetupArtifacts()}</li>
-     * </ul> 
-     */
-    @AfterClass
-    public static void tearDown() {
-        AbstractModelManagerTests.deleteSetupArtifacts();
     }
     
 }
