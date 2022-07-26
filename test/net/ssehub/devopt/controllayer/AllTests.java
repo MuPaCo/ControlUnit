@@ -36,6 +36,7 @@ import net.ssehub.devopt.controllayer.network.HttpServerCreationTests;
 import net.ssehub.devopt.controllayer.network.HttpServerUsageTests;
 import net.ssehub.devopt.controllayer.network.MqttV3ClientCreationTests;
 import net.ssehub.devopt.controllayer.network.MqttV3ClientUsageTests;
+import net.ssehub.devopt.controllayer.scenarios.Scenario01;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesConfigurationLoadTests;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesConfigurationUnloadTests;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesIsValidTests;
@@ -83,7 +84,9 @@ import net.ssehub.devopt.controllayer.utilities.ModelUtilitiesTests;
     MonitoringDataReceiverCallbackAdditionTests.class,
     MonitoringDataReceiverCallbackRemovalTests.class,
     MonitoringDataReceiverObservableAdditionTests.class,
-    MonitoringDataReceiverObservableRemovalTests.class
+    MonitoringDataReceiverObservableRemovalTests.class,
+    // Scenario tests
+    Scenario01.class
     })
 
 /**
