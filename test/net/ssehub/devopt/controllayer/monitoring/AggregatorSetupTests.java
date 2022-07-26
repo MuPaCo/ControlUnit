@@ -28,6 +28,8 @@ import org.junit.runners.Parameterized.Parameters;
 import net.ssehub.devopt.controllayer.AllTests;
 import net.ssehub.devopt.controllayer.Setup;
 import net.ssehub.devopt.controllayer.SetupException;
+import net.ssehub.devopt.controllayer.utilities.FileUtilities;
+import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
 
 /**
  * This class contains units tests for the {@link Aggregator#setUp(Setup)} method.
@@ -114,6 +116,15 @@ public class AggregatorSetupTests {
             actualSetupExceptionMessage = null;
         } catch (MonitoringException e) {
             actualSetupExceptionMessage = e.getMessage();
+        } finally {
+            // Delete the model directory again, which is created automatically by a setup instance
+            if (testSetup != null) {
+                try {
+                    FileUtilities.INSTANCE.delete(new File(testSetup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY)));
+                } catch (FileUtilitiesException e) {
+                    fail("Deleting model directory as defined in test setup failed unexpectedly", e);
+                }
+            }
         }
     }
     

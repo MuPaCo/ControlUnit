@@ -31,6 +31,8 @@ import net.ssehub.devopt.controllayer.network.HttpRequestCallback;
 import net.ssehub.devopt.controllayer.network.HttpResponse;
 import net.ssehub.devopt.controllayer.network.HttpServer;
 import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.FileUtilities;
+import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
 
 /**
  * This class contains unit tests for the usage of the {@link Aggregator} instance. In particular, these tests focus on
@@ -82,6 +84,11 @@ public class AggregatorHttpUsageTests implements HttpRequestCallback {
     private static final long DEFAULT_ASYNC_RESPONSE_SLEEP = 500;
     
     /**
+     * The {@link Setup} instance used in these tests.
+     */
+    private static Setup testSetup;
+    
+    /**
      * The {@link HttpServer} instance representing the target to distribute aggregated data to. This instance uses the
      * same properties as defined in the configuration file denoted by the {@link #TEST_CONFIGURATION_FILE_PATH} to
      * set up a server, which then receives the aggregated data distributed by the {@link Aggregator} instance to test.
@@ -103,7 +110,7 @@ public class AggregatorHttpUsageTests implements HttpRequestCallback {
     @BeforeClass
     public static void setUp() {
         try {
-            Setup testSetup = new Setup(TEST_CONFIGURATION_FILE_PATH);
+            testSetup = new Setup(TEST_CONFIGURATION_FILE_PATH);
             Aggregator.setUp(testSetup);
             aggregationReceptionServer = new HttpServer("AggregationServer", AGGREGATION_DISTRIBUTION_URL,
                     AGGREGATION_DISTRIBUTION_PORT, 0);
@@ -125,6 +132,15 @@ public class AggregatorHttpUsageTests implements HttpRequestCallback {
             Aggregator.tearDown();
         } catch (MonitoringException e) {
             fail("Tearing down the aggregator HTTP usage tests failed unexpectedly", e);
+        } finally {
+            // Delete the model directory again, which is created automatically by a setup instance
+            if (testSetup != null) {
+                try {
+                    FileUtilities.INSTANCE.delete(new File(testSetup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY)));
+                } catch (FileUtilitiesException e) {
+                    fail("Deleting model directory as defined in test setup failed unexpectedly", e);
+                }
+            }
         }
     }
     

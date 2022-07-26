@@ -31,6 +31,8 @@ import net.ssehub.devopt.controllayer.Setup;
 import net.ssehub.devopt.controllayer.SetupException;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.FileUtilities;
+import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
 
 /**
  * This class contains unit tests for the usage of the {@link Aggregator} instance. In particular, these tests focus on
@@ -82,6 +84,11 @@ public class AggregatorMqttUsageTests implements MqttCallback {
     private static final long DEFAULT_MESSAGE_ARRIVAL_SLEEP = 500;
     
     /**
+     * The {@link Setup} instance used in these tests.
+     */
+    private static Setup testSetup;
+    
+    /**
      * The {@link MqttV3Client} instance to subscribe to the topic on which the {@link Aggregator} instance will publish
      * the aggregated data. For this purpose, this instance uses the same properties as defined in the configuration
      * file denoted by the {@link #TEST_CONFIGURATION_FILE_PATH}.
@@ -103,7 +110,7 @@ public class AggregatorMqttUsageTests implements MqttCallback {
     @BeforeClass
     public static void setUp() {
         try {
-            Setup testSetup = new Setup(TEST_CONFIGURATION_FILE_PATH);
+            testSetup = new Setup(TEST_CONFIGURATION_FILE_PATH);
             Aggregator.setUp(testSetup);
             aggregationSubscriptionClient = new MqttV3Client("AggregationSubscriber", AGGREGATION_DISTRIBUTION_URL,
                     AGGREGATION_DISTRIBUTION_PORT, null, null);
@@ -125,6 +132,15 @@ public class AggregatorMqttUsageTests implements MqttCallback {
             Aggregator.tearDown();
         } catch (NetworkException | MonitoringException e) {
             fail("Tearing down the aggregator MQTT usage tests failed unexpectedly", e);
+        } finally {
+            // Delete the model directory again, which is created automatically by a setup instance
+            if (testSetup != null) {
+                try {
+                    FileUtilities.INSTANCE.delete(new File(testSetup.getModelConfiguration(Setup.KEY_MODEL_DIRECTORY)));
+                } catch (FileUtilitiesException e) {
+                    fail("Deleting model directory as defined in test setup failed unexpectedly", e);
+                }
+            }
         }
     }
     
