@@ -29,11 +29,11 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
 
 
 /**
- * This class realizes a receiver for incoming registration requests. Registrations allow the control unit to supervise
- * the respective sender, an external entity. Hence, each message received via an instance of this class is interpreted
- * as an IVML model definition based on the DevOpt meta model. Such definitions describe the respective external entity.
- * The receiver therefore  creates a network connection based on the given constructor parameters and passes received
- * message contents to the defined {@link ModelReceptionCallback} for further processing.<br>  
+ * This class realizes a threaded receiver for incoming registration requests. Registrations allow the control unit to
+ * supervise the respective sender, an external entity. Hence, each message received via an instance of this class is
+ * interpreted as an IVML model definition based on the DevOpt meta model. Such definitions describe the respective
+ * external entity. The receiver therefore  creates a network connection based on the given constructor parameters and
+ * passes received message contents to the defined {@link ModelReceptionCallback} for further processing.<br>  
  * <br>
  * Instances of this class always are under control of the {@link ModelManager}. Typically, there is only a single
  * instance, which calls the manager back, if a new message arrives. 
@@ -41,7 +41,7 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
  * @author kroeher
  *
  */
-public class ModelReceiver implements MqttCallback, HttpRequestCallback {
+public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallback {
     
     /**
      * The identifier of this class, e.g., for logging messages. 
@@ -52,6 +52,33 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
      * The local reference to the global {@link Logger}.
      */
     private Logger logger = Logger.INSTANCE;
+    
+    /**
+     * The {@link Thread} in which this instance is executed.
+     */
+    private Thread instanceThread;
+    
+    /**
+     * The {@link ModelException} thrown during {@link #startInstance()}. May be <code>null</code>, if this instance is
+     * not started yet (see also {@link #networkConnectionEstablished}) or starting this instance was successful.<br>
+     * <br>
+     * Declaring this attribute as <code>volatile</code> is mandatory as it is a shared variable between the thread,
+     * which creates the instance of this class, and the {@link #instanceThread}. It enables propagating exceptions
+     * thrown during starting the instance and the caller of {@link #start()}, which spans the two threads.
+     */
+    private volatile ModelException instanceStartException;
+    
+    /**
+     * The definition of whether {@link #startInstance()} successfully established the desired network connection
+     * (<code>true</code>) or not (<code>false</code>). The default value is <code>false</code>.<br>
+     * <br>
+     * Declaring this attribute as <code>volatile</code> is mandatory as it is a shared variable between the thread,
+     * which creates the instance of this class, and the {@link #instanceThread}. It enables blocking the caller of
+     * {@link #start()} until establishing the network connection is finished, which spans the two threads. Blocking the
+     * caller is necessary to inform about potential fail of this start via propagating the
+     * {@link #instanceStartException}.
+     */
+    private volatile boolean networkConnectionEstablished;
     
     /**
      * The instance to inform about any received messages.
@@ -113,6 +140,9 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     //checkstyle: stop parameter number check
     public ModelReceiver(String protocol, String receptionUrl, int receptionPort, String receptionChannel,
             String username, String password, ModelReceptionCallback callback) throws ModelException {
+        instanceThread = null;
+        instanceStartException = null;
+        networkConnectionEstablished = false;
         if (callback == null) {
             throw new ModelException("Invalid model reception callback: \"null\"");
         }
@@ -160,31 +190,83 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     }
     
     /**
+     * Starts the {@link ModelReceiver} instance in a new {@link Thread}. Hence, the usage of this method must be equal
+     * to calling {@link Thread#start()}.
+     * 
+     * @throws ModelException if establishing the network connection for receiving registrations fails; this will also
+     *         terminate the thread in which this instance is executed
+     */
+    public synchronized void start() throws ModelException {
+        if (instanceThread == null) {
+            logger.logInfo(ID, "Starting instance (thread)");
+            instanceThread = new Thread(this, ID);
+            instanceThread.start(); // This calls run() of this runnable, which in turn calls startInstance()
+            /*
+             * Calling 'start()' above triggers calling 'run()' of this instance, which in turn calls 'startInstance()'.
+             * The latter method sets 'networkConnectionEstablished' to 'true', if subscribing the MQTT client or
+             * starting the HTTP server was successful. If establishing the network connection fails, 'startInstance()'
+             * sets 'instanceStartExecption' with a new exception describing the cause of the fail. Hence, the loop
+             * below will terminate in either case, but ensures that the caller of this method is blocked until this
+             * instance is completely started.
+             */
+            while (!networkConnectionEstablished && instanceStartException == null) {
+                /* Block caller until 'startInstance()' is done */
+            }
+            if (instanceStartException != null) {
+                instanceThread = null;
+                throw instanceStartException;
+            }
+            logger.logInfo(ID, "Instance (thread) started");
+        }
+    }
+    
+    /**
+     * Stops the {@link ModelReceiver} instance and its {@link Thread}.
+     * 
+     * @throws ModelException if closing the network connection for receiving registrations or stopping the thread fails
+     */
+    public synchronized void stop() throws ModelException {
+        if (instanceThread != null) {
+            logger.logInfo(ID, "Stopping instance (thread)");
+            stopInstance();
+            try {
+                instanceThread.join();
+                instanceThread = null;
+                logger.logInfo(ID, "Instance (thread) stopped");
+            } catch (InterruptedException e) {
+                throw new ModelException("Waiting for model receiver thread to join failed", e);
+            }
+        }
+    }
+    
+    /**
      * Starts this instance by either subscribing to the MQTT broker and its registration topic or starting the local
      * HTTP server with its registration context. Which alternative is executed depends on the protocol given to the
      * constructor of this instance.
      *   
-     * @throws ModelException if subscribing or starting the server fails
+     * @throws ModelException if subscribing the client or starting the server fails
      */
-    public void start() throws ModelException {
+    private void startInstance() {
         if (mqttClient != null) {
             try {
                 mqttClient.subscribe(receptionChannel, 2, this);
+                networkConnectionEstablished = true;
                 logger.logInfo(ID, "Model receiver started", mqttClient.toString());
             } catch (NetworkException e) {
-                throw new ModelException("Starting model receiver client failed", e);
+                instanceStartException = new ModelException("Starting model receiver client failed", e);
             }
         } else if (httpServer != null && httpServer.getState() == ServerState.INITIALIZED) {
             try {
                 httpServer.addContext(receptionChannel, this);
-                httpServer.start();
+                networkConnectionEstablished = httpServer.start();
                 logger.logInfo(ID, "Model receiver started", httpServer.toString());
             } catch (NetworkException e) {
-                throw new ModelException("Starting model receiver server failed", e);
+                instanceStartException =  new ModelException("Starting model receiver server failed", e);
             }
         } else {
             // Should never be reached
-            throw new ModelException("Starting model receiver failed: missing connection instance");
+            networkConnectionEstablished = false;
+            instanceStartException =  new ModelException("Starting model receiver failed: missing connection instance");
         }
     }
     
@@ -194,7 +276,7 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
      *   
      * @throws ModelException if closing the MQTT client fails; stopping the server will always be successful
      */
-    public void stop() throws ModelException {
+    private void stopInstance() throws ModelException {
         if (mqttClient != null) {
             try {
                 mqttClient.close();
@@ -227,12 +309,13 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     @Override
     public void connectionLost(Throwable cause) {
         logger.logException(ID, new ModelException(mqttClient + " lost connection", cause));
+        instanceStartException = null;
+        networkConnectionEstablished = false;
         logger.logInfo(ID, "Trying to reestablish client connection");
-        try {
-            start();
-        } catch (ModelException e) {
+        startInstance(); // sets 'networkConnectionEstablished' to 'true', if start was successful
+        if (!networkConnectionEstablished) {            
             logger.logError(ID, "Reestablishing client connection failed");
-            logger.logException(ID, e);
+            logger.logException(ID, instanceStartException);
         }
     }
 
@@ -289,6 +372,16 @@ public class ModelReceiver implements MqttCallback, HttpRequestCallback {
     @Override
     public String getName() {
         return ID;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void run() {
+        if (instanceThread != null) { // ensure that this call is executed in instance thread
+            startInstance();
+        }
     }
     
 }
