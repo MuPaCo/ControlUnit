@@ -36,7 +36,7 @@ import net.ssehub.easy.varModel.confModel.Configuration;
  * @author kroeher
  *
  */
-public class ModelManager implements GenericCallback<String> {
+public class ModelManager implements Runnable, GenericCallback<String> {
     
     /**
      * The identifier of this class, e.g., for logging messages. 
@@ -62,6 +62,33 @@ public class ModelManager implements GenericCallback<String> {
      * The local reference to the global {@link FileUtilities}.
      */
     private FileUtilities fileUtilities = FileUtilities.INSTANCE;
+    
+    /**
+     * The {@link Thread} in which this instance is executed.
+     */
+    private Thread instanceThread;
+    
+    /**
+     * The {@link ModelException} thrown during {@link #startInstance()}. May be <code>null</code>, if this instance is
+     * not started yet (see also {@link #modelReceiverEstablished}) or starting this instance was successful.<br>
+     * <br>
+     * Declaring this attribute as <code>volatile</code> is mandatory as it is a shared variable between the thread,
+     * which creates the instance of this class, and the {@link #instanceThread}. It enables propagating exceptions
+     * thrown during starting the instance and the caller of {@link #start()}, which spans the two threads.
+     */
+    private volatile ModelException instanceStartException;
+    
+    /**
+     * The definition of whether {@link #startInstance()} successfully established the {@link #modelReceiver}
+     * (<code>true</code>) or not (<code>false</code>). The default value is <code>false</code>.<br>
+     * <br>
+     * Declaring this attribute as <code>volatile</code> is mandatory as it is a shared variable between the thread,
+     * which creates the instance of this class, and the {@link #instanceThread}. It enables blocking the caller of
+     * {@link #start()} until establishing the mode receiver is finished, which spans the two threads. Blocking the
+     * caller is necessary to inform about potential fail of this start via propagating the
+     * {@link #instanceStartException}.
+     */
+    private volatile boolean modelReceiverEstablished;
     
     /**
      * The {@link ModelReceiver} which manages the network connection and the incoming requests via that connection for
@@ -93,6 +120,9 @@ public class ModelManager implements GenericCallback<String> {
      * Constructs a new {@link ModelManager} instance.
      */
     private ModelManager() {
+        instanceThread = null;
+        instanceStartException = null;
+        modelReceiverEstablished = false;
         entityInformation = new HashMap<String, EntityInfo>();        
     }
     
@@ -266,12 +296,66 @@ public class ModelManager implements GenericCallback<String> {
     }
     
     /**
-     * Starts the internal {@link ModelReceiver} after establish monitoring for all available models already loaded
-     * during setup.
+     * Starts the {@link ModelManager} instance in a new {@link Thread}. Hence, the usage of this method must be equal
+     * to calling {@link Thread#start()}.
      * 
-     * @throws ModelException if activating the network connection of the model receiver fails
+     * @throws ModelException if establishing the internal {@link ModelReceiver instance} fails; this will also
+     *         terminate the thread in which this instance is executed
      */
-    public void start() throws ModelException {
+    public synchronized void start() throws ModelException {
+        if (instanceThread == null) {
+            logger.logInfo(ID, "Starting instance (thread)");
+            instanceThread = new Thread(this, ID);
+            instanceThread.start(); // This calls run() of this runnable, which in turn calls startInstance()
+            /*
+             * Calling 'start()' above triggers calling 'run()' of this instance, which in turn calls 'startInstance()'.
+             * The latter method sets 'modelReceiverEstablished' to 'true', if starting the model receiver instance
+             * was successful. If starting the model receiver instance fails, 'startInstance()' sets
+             * 'instanceStartExecption' with a new exception describing the cause of the fail. Hence, the loop below
+             * will terminate in either case, but ensures that the caller of this method is blocked until this instance
+             * is completely started.
+             */
+            while (!modelReceiverEstablished && instanceStartException == null) {
+                /* Block caller until 'startInstance()' is done */
+            }
+            if (instanceStartException != null) {
+                instanceThread = null;
+                throw instanceStartException;
+            }
+            logger.logInfo(ID, "Instance (thread) started");
+        }
+    }
+    
+    /**
+     * Stops the {@link ModelManager} instance and its {@link Thread}.
+     * 
+     * @throws ModelException if stopping the internal {@link ModelReceiver} instance or the thread fails
+     */
+    public synchronized void stop() throws ModelException {
+        if (instanceThread != null) {
+            logger.logInfo(ID, "Stopping instance (thread)");
+            stopInstance();
+            try {
+                instanceThread.join();
+                instanceThread = null;
+                logger.logInfo(ID, "Instance (thread) stopped");
+            } catch (InterruptedException e) {
+                throw new ModelException("Waiting for model manager thread to join failed", e);
+            } finally {
+                logger = null;
+            }
+        }
+    }
+    
+    /**
+     * Starts the internal {@link ModelReceiver} after establish monitoring for all available models already loaded
+     * during setup.<br>
+     * <br>
+     * If starting the instance was successful can be checked via {@link #modelReceiverEstablished} and 
+     * {@link #instanceStartException}.
+     * 
+     */
+    private void startInstance() {
         // Establish monitoring for all available models already loaded during setup
         Iterator<String> entityInformationKeysIterator = entityInformation.keySet().iterator();
         EntityInfo entityInfo;
@@ -282,7 +366,12 @@ public class ModelManager implements GenericCallback<String> {
             }
         }
         // Start model receiver to receive registration requests
-        modelReceiver.start();
+        try {
+            modelReceiver.start();
+            modelReceiverEstablished = true;
+        } catch (ModelException e) {
+            instanceStartException = e;
+        }
     }
     
     /**
@@ -291,7 +380,7 @@ public class ModelManager implements GenericCallback<String> {
      * 
      * @throws ModelException if stopping the model receiver fails
      */
-    public void stop() throws ModelException {
+    private void stopInstance() throws ModelException {
         // Stop model receiver to reject any further incoming registration requests
         modelReceiver.stop();
         modelReceiver = null;
@@ -310,7 +399,6 @@ public class ModelManager implements GenericCallback<String> {
         entityInformation = null;
         modelDirectory = null;
         fileUtilities = null;
-        logger = null;
         instance = null;
     }
 
@@ -437,6 +525,16 @@ public class ModelManager implements GenericCallback<String> {
             }
         }
         return entityInfo;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void run() {
+        if (instanceThread != null) { // ensure that this call is executed in instance thread
+            startInstance();
+        }
     }
 
 }
