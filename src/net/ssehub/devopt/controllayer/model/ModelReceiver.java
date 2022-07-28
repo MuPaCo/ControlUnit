@@ -265,7 +265,7 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
      * constructor of this instance. Further, this method sets the {@link #messageQueue} state to
      * {@link QueueState#OPEN} and starts the {@link #messagePropagator} in its {@link #messagePropagatorThread}.<br>
      * <br>
-     * If starting the instance was successful, can be checked via {@link #networkConnectionEstablished} and 
+     * If starting the instance was successful can be checked via {@link #networkConnectionEstablished} and 
      * {@link #instanceStartException}.
      */
     private void startInstance() {
