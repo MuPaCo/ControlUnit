@@ -54,19 +54,32 @@ public class GenericPropagator<T> implements Runnable {
     
     /**
      * Adds the given callback to the list of callbacks to inform about elements in the queue, which this instance
-     * received during construction.<br>
-     * <br>
-     * Note that once this instance {@link #run()}s, adding new callbacks is <b>not safe</b>. This should be avoided.
+     * received during construction.
      * 
      * @param callback the callback to add
      * @return <code>true</code>, if adding the callback was successful; <code>false</code> otherwise
      */
-    public boolean addCallback(GenericCallback<T> callback) {
+    public synchronized boolean addCallback(GenericCallback<T> callback) {
         boolean callbackAdded = false;
-        if (!callbacks.contains(callback)) {
+        if (callback != null && !callbacks.contains(callback)) {
             callbackAdded = callbacks.add(callback);
         }
         return callbackAdded;
+    }
+    
+    /**
+     * Removes the given callback from the list of callbacks to inform about elements in the queue, which this instance
+     * received during construction.
+     * 
+     * @param callback the callback to remove
+     * @return <code>true</code>, if removing the callback was successful; <code>false</code> otherwise
+     */
+    public synchronized boolean removeCallback(GenericCallback<T> callback) {
+        boolean callbackRemoved = false;
+        if (callback != null && callbacks.contains(callback)) {
+            callbackRemoved = callbacks.remove(callback);
+        }
+        return callbackRemoved;
     }
 
     /**
