@@ -26,6 +26,7 @@ import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.FileUtilities;
 import net.ssehub.devopt.controllayer.utilities.FileUtilities.WriteOption;
 import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
+import net.ssehub.devopt.controllayer.utilities.GenericCallback;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 import net.ssehub.easy.varModel.confModel.Configuration;
 
@@ -35,7 +36,7 @@ import net.ssehub.easy.varModel.confModel.Configuration;
  * @author kroeher
  *
  */
-public class ModelManager implements ModelReceptionCallback {
+public class ModelManager implements GenericCallback<String> {
     
     /**
      * The identifier of this class, e.g., for logging messages. 
@@ -255,7 +256,7 @@ public class ModelManager implements ModelReceptionCallback {
      * @param callback the instance to be called back by the model receiver for each received message
      * @throws ModelException if creating the model receiver instance fails
      */
-    private void createModelReceiver(Setup setup, ModelReceptionCallback callback) throws ModelException {
+    private void createModelReceiver(Setup setup, GenericCallback<String> callback) throws ModelException {
         String receptionProtocol = setup.getRegistrationConfiguration(Setup.KEY_REGISTRATION_PROTOCOL);
         String receptionUrl = setup.getRegistrationConfiguration(Setup.KEY_REGISTRATION_URL);
         int receptionPort = Integer.parseInt(setup.getRegistrationConfiguration(Setup.KEY_REGISTRATION_PORT));
@@ -313,8 +314,11 @@ public class ModelManager implements ModelReceptionCallback {
         instance = null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void modelReceived(String receivedContent) {
+    public void inform(String receivedContent) {
         if (receivedContent != null && !receivedContent.isBlank()) {
             String modelIdentifier = "" + System.currentTimeMillis();
             EntityInfo addedEntityInfo = addReceivedModel(modelIdentifier, receivedContent);

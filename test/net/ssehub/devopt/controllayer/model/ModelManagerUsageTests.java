@@ -96,7 +96,7 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
      */
     @Test
     public void testModelCount() {
-        testModelManagerInstance.modelReceived(testIvmlModel);
+        testModelManagerInstance.inform(testIvmlModel);
         assertEquals(expectedAvailableModelCount, testModelManagerInstance.getEntityInfoCount(),
                 "Incorrect number of available entity information");
     }

@@ -25,15 +25,20 @@ import net.ssehub.devopt.controllayer.network.HttpServer;
 import net.ssehub.devopt.controllayer.network.HttpServer.ServerState;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.GenericCallback;
 import net.ssehub.devopt.controllayer.utilities.Logger;
+import net.ssehub.devopt.controllayer.utilities.GenericPropagator;
+import net.ssehub.devopt.controllayer.utilities.GenericQueue;
+import net.ssehub.devopt.controllayer.utilities.GenericQueue.QueueState;
 
 
 /**
  * This class realizes a threaded receiver for incoming registration requests. Registrations allow the control unit to
  * supervise the respective sender, an external entity. Hence, each message received via an instance of this class is
  * interpreted as an IVML model definition based on the DevOpt meta model. Such definitions describe the respective
- * external entity. The receiver therefore  creates a network connection based on the given constructor parameters and
- * passes received message contents to the defined {@link ModelReceptionCallback} for further processing.<br>  
+ * external entity. The receiver therefore creates a network connection based on the given constructor parameters. All
+ * received messages via this connection are stored in a {@link GenericQueue} from which a {@link GenericPropagator} 
+ * passes any queue element to the {@link GenericCallback} given during construction for further processing.<br>  
  * <br>
  * Instances of this class always are under control of the {@link ModelManager}. Typically, there is only a single
  * instance, which calls the manager back, if a new message arrives. 
@@ -81,14 +86,27 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
     private volatile boolean networkConnectionEstablished;
     
     /**
-     * The instance to inform about any received messages.
-     */
-    private ModelReceptionCallback callback;
-    
-    /**
      * The MQTT topic to subscribe to or the HTTP server context to create for incoming registration requests.
      */
     private String receptionChannel;
+    
+    /**
+     * The queue for storing received messages. Removing stored messages is exclusive to the {@link #messagePropagator}.
+     */
+    private GenericQueue<String> messageQueue;
+    
+    /**
+     * The propagator for removing messages from the {@link #messageQueue} and passing them to the callback given during
+     * construction of this instance.
+     */
+    private GenericPropagator<String> messagePropagator;
+    
+    /**
+     * The {@link Thread} in which the {@link #messagePropagator} is executed. Hence, receiving new messages and adding
+     * them to the {@link #messageQueue} occurs in the {@link #instanceThread}, while their removal and further
+     * processing happens in this thread without blocking the reception.
+     */
+    private Thread messagePropagatorThread;
     
     /**
      * The {@link MqttV3Client} instance to use for receiving incoming registration requests. May be <code>null</code>,
@@ -139,14 +157,16 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
      */
     //checkstyle: stop parameter number check
     public ModelReceiver(String protocol, String receptionUrl, int receptionPort, String receptionChannel,
-            String username, String password, ModelReceptionCallback callback) throws ModelException {
-        instanceThread = null;
-        instanceStartException = null;
-        networkConnectionEstablished = false;
+            String username, String password, GenericCallback<String> callback) throws ModelException {
         if (callback == null) {
             throw new ModelException("Invalid model reception callback: \"null\"");
         }
-        this.callback = callback;
+        instanceThread = null;
+        instanceStartException = null;
+        networkConnectionEstablished = false;
+        messageQueue = new GenericQueue<String>(100);
+        messagePropagator = new GenericPropagator<String>(messageQueue);
+        messagePropagator.addCallback(callback);
         this.receptionChannel = receptionChannel;
         createReceiver(protocol, receptionUrl, receptionPort, username, password);
     }
@@ -242,7 +262,8 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
     /**
      * Starts this instance by either subscribing to the MQTT broker and its registration topic or starting the local
      * HTTP server with its registration context. Which alternative is executed depends on the protocol given to the
-     * constructor of this instance.
+     * constructor of this instance. Further, this method sets the {@link #messageQueue} state to
+     * {@link QueueState#OPEN} and starts the {@link #messagePropagator} in its new {@link #messagePropagatorThread}.
      *   
      * @throws ModelException if subscribing the client or starting the server fails
      */
@@ -268,13 +289,19 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
             networkConnectionEstablished = false;
             instanceStartException =  new ModelException("Starting model receiver failed: missing connection instance");
         }
+        messageQueue.setState(QueueState.OPEN);
+        messagePropagatorThread = new Thread(messagePropagator, messagePropagator.getClass().getSimpleName());
+        messagePropagatorThread.start();
     }
     
     /**
      * Stops this instance by either closing the MQTT client or stopping the local HTTP server. Which alternative is
-     * executed depends on the protocol given to the constructor of this instance.
+     * executed depends on the protocol given to the constructor of this instance. Further, this method sets the
+     * {@link #messageQueue} state to {@link QueueState#CLOSED} and waits for the {@link #messagePropagatorThread} to
+     * join.
      *   
-     * @throws ModelException if closing the MQTT client fails; stopping the server will always be successful
+     * @throws ModelException if closing the MQTT client waiting for the thread to join fails; stopping the server will
+     *         always be successful
      */
     private void stopInstance() throws ModelException {
         if (mqttClient != null) {
@@ -291,16 +318,13 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
             // Should never be reached
             throw new ModelException("Stopping model receiver failed: missing connection instance");
         }
-    }
-    
-    /**
-     * Informs the {@link #callback} about the reception of a new message with the given content.
-     * 
-     * @param receivedMessageContent the content of the received message
-     */
-    private void informCallback(String receivedMessageContent) {
-        // TODO this call will block this receiver; decouple this receiver from the actual message content processing 
-        callback.modelReceived(receivedMessageContent);
+        
+        messageQueue.setState(QueueState.CLOSED); // Closing the queue also stops message propagator
+        try {
+            messagePropagatorThread.join();
+        } catch (InterruptedException e) {
+            throw new ModelException("Waiting for message propagator thread to join failed", e);
+        }
     }
     
     /**
@@ -336,7 +360,7 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
         if (message != null) {
             byte[] payload = message.getPayload();
             if (payload != null) {
-                informCallback(new String(payload));
+                messageQueue.addElement(new String(payload));
             }
         }
     }
@@ -356,7 +380,7 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
             }
         } else {
             logger.logDebug(ID, "New HTTP request arrived");
-            informCallback(request.getBody());
+            messageQueue.addElement(request.getBody());
             int responseCode = 200; // "OK"
             String responseBody = "Registration received";
             // TODO add correct response headers
