@@ -19,6 +19,7 @@ import java.io.OutputStream;
 import net.ssehub.devopt.controllayer.model.ModelException;
 import net.ssehub.devopt.controllayer.model.ModelManager;
 import net.ssehub.devopt.controllayer.monitoring.Aggregator;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiver;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringException;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
@@ -106,8 +107,10 @@ public class Controller {
     public boolean stop() {
         boolean controllerStopped = false;
         try {
-            logger.logInfo(ID, "Stopping model manager and monitoring");
-            modelManager.stop(); // This also stops the model receiver and the monitoring data receiver
+            logger.logInfo(ID, "Stopping model manager and removing observables");
+            modelManager.stop(); // This also stops the model receiver
+            logger.logInfo(ID, "Stopping monitoring data receiver");
+            MonitoringDataReceiver.getInstance().stop();
             logger.logInfo(ID, "Deleting aggregator");
             Aggregator.tearDown();
             logger.logInfo(ID, "Stopping EASy-Producer components");

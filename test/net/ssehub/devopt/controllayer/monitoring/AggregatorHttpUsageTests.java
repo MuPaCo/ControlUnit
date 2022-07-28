@@ -163,11 +163,13 @@ public class AggregatorHttpUsageTests implements HttpRequestCallback {
         String[] expectedAggregationRresults = {"1", "2", "6", "-1", "4", "8"};
         String testMonitoringChannelPrefix = "Monitoring";
         int testMonitoringChannelNumber = 0;
+        MonitoringData testMonitoringDataObject;
         for (int i = 0; i < testMonitoringData.length; i++) {
             aggregationReceptionContent = null;
             testMonitoringChannelNumber = i % 2; // Tests with two different channel sending monitoring data
-            Aggregator.instance.monitoringDataReceived(testMonitoringChannelPrefix + testMonitoringChannelNumber,
-                    testMonitoringData[i]);
+            testMonitoringDataObject = new MonitoringData(testMonitoringChannelPrefix + testMonitoringChannelNumber,
+                    testMonitoringData[i], System.currentTimeMillis());
+            Aggregator.instance.inform(testMonitoringDataObject);
             waitForAsyncResponse();
             assertEquals(expectedAggregationRresults[i], aggregationReceptionContent, "Wrong aggregation result");
         }

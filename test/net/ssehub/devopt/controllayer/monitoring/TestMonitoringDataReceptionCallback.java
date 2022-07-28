@@ -14,14 +14,17 @@
  */
 package net.ssehub.devopt.controllayer.monitoring;
 
+import net.ssehub.devopt.controllayer.utilities.GenericCallback;
+
 /**
- * This class implements the {@link MonitoringDataReceptionCallback} interface and provides access to received
- * monitoring data. Hence, instances of this class will be used as callbacks for tests requiring them.
+ * This class implements the {@link GenericCallback} interface with {@link MonitoringData} as specific type to act as a
+ * monitoring data callback, which provides access to received monitoring data. Hence, instances of this class will be
+ * used as callbacks for tests requiring them.
  * 
  * @author kroeher
  *
  */
-public class TestMonitoringDataReceptionCallback implements MonitoringDataReceptionCallback {
+public class TestMonitoringDataReceptionCallback implements GenericCallback<MonitoringData> {
     
     /**
      * The name of this instance.
@@ -41,7 +44,7 @@ public class TestMonitoringDataReceptionCallback implements MonitoringDataRecept
     /**
      * Constructs a new {@link TestMonitoringDataReceptionCallback} instance.
      * 
-     * @param name the name of this instance use as return value of {@link #toString()}; must not be <code>null</code>
+     * @param name the name of this instance used as return value of {@link #toString()}; must not be <code>null</code>
      */
     public TestMonitoringDataReceptionCallback(String name) {
         this.name = name;
@@ -60,13 +63,13 @@ public class TestMonitoringDataReceptionCallback implements MonitoringDataRecept
      * {@inheritDoc}
      */
     @Override
-    public void monitoringDataReceived(String channel, String data) {
-        this.channel = channel;
-        this.data = data;
+    public void inform(MonitoringData data) {
+        this.channel = data.getChannel();
+        this.data = data.getData();
     }
     
     /**
-     * Returns the channel as received via the latest {@link #monitoringDataReceived(String, String)} call.
+     * Returns the channel as received via the latest {@link #inform(MonitoringData)} call.
      * 
      * @return the channel or <code>null</code>, if no such information was received so far
      */
@@ -75,7 +78,7 @@ public class TestMonitoringDataReceptionCallback implements MonitoringDataRecept
     }
     
     /**
-     * Returns the data as received via the latest {@link #monitoringDataReceived(String, String)} call.
+     * Returns the data as received via the latest {@link #inform(MonitoringData)} call.
      * 
      * @return the data or <code>null</code>, if no such information was received so far
      */

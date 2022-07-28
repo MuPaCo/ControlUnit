@@ -19,11 +19,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 import net.ssehub.devopt.controllayer.Setup;
-import net.ssehub.devopt.controllayer.model.EntityInfo;
 import net.ssehub.devopt.controllayer.network.HttpClient;
 import net.ssehub.devopt.controllayer.network.HttpResponseCallback;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.GenericCallback;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
@@ -33,7 +33,7 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
  * @author kroeher
  *
  */
-public class Aggregator implements MonitoringDataReceptionCallback, HttpResponseCallback {
+public class Aggregator implements GenericCallback<MonitoringData>, HttpResponseCallback {
     
     /**
      * The singleton instance of this class.
@@ -95,8 +95,8 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
     /**
      * The mapping of the recent entity messages received via monitoring. The keys for these mappings are the channels
      * on which the respective message arrived. This mapping will be updated as part of
-     * {@link #aggregate(String, String)}, which is called for each {@link #monitoringDataReceived(String, String)}.
-     * Hence, this mapping always contains all recent messages of all entities under monitoring. 
+     * {@link #aggregate(MonitoringData)}, which is called for each call of {@link #inform(MonitoringData)}. Hence, this
+     * mapping always contains all recent messages of all entities under monitoring. 
      */
     private HashMap<String, String> entityMessages;
    
@@ -125,7 +125,7 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
             if (setup != null) {
                 instance = new Aggregator();
                 instance.prepareDistribution(setup);
-                if (!MonitoringDataReceiver.INSTANCE.addCallback(instance)) {
+                if (!MonitoringDataReceiver.getInstance().addCallback(instance)) {
                     throw new MonitoringException("Adding aggregator as monitoring data receiver callback failed");
                 }
             } else {
@@ -144,7 +144,8 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
      */
     public static void tearDown() throws MonitoringException {
         if (instance != null) {
-            if (MonitoringDataReceiver.INSTANCE.removeCallback(instance)) {                
+            if (MonitoringDataReceiver.getInstance() == null
+                    || MonitoringDataReceiver.getInstance().removeCallback(instance)) {                
                 instance.destruct();
                 instance = null;
             } else {
@@ -228,12 +229,10 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
      *      mechanism to easily exchange aggregation algorithms (maybe also combine them) in a generic way is desired
      *      in future.
      *   
-     * @param receptionChannel the channel on which the monitoring data was received; this is the MQTT topic name or
-     *        HTTP server context name of the entity's monitoring scope as defined by its {@link EntityInfo} instance 
-     * @param receivedData the data received via the channel
+     * @param data the received monitoring data; must not be <code>null</code>
      */
-    private void aggregate(String receptionChannel, String receivedData) {
-        entityMessages.put(receptionChannel, receivedData);
+    private void aggregate(MonitoringData data) {
+        entityMessages.put(data.getChannel(), data.getData());
         String aggregationResult = null;
         
         Iterator<String> entityMessagesKeysIterator = entityMessages.keySet().iterator();
@@ -282,9 +281,13 @@ public class Aggregator implements MonitoringDataReceptionCallback, HttpResponse
      * {@inheritDoc}
      */
     @Override
-    public void monitoringDataReceived(String channel, String data) {
-        logger.logDebug(ID, "Monitoring data received", "Channel: " + channel, "Data: " + data);
-        aggregate(channel, data); // TODO this will block the caller of this method until aggregation is done
+    public void inform(MonitoringData element) {
+        logger.logDebug(ID, "Monitoring data received",
+                "Channel: " + element.getChannel(),
+                "Data: " + element.getData(),
+                "Time: " + element.getTime());
+        aggregate(element); // TODO this will block the caller of this method until aggregation is done
+        
     }
 
     /**

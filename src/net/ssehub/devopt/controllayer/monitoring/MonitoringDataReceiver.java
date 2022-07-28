@@ -14,10 +14,9 @@
  */
 package net.ssehub.devopt.controllayer.monitoring;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Iterator;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -30,24 +29,22 @@ import net.ssehub.devopt.controllayer.network.HttpRequestCallback;
 import net.ssehub.devopt.controllayer.network.HttpResponse;
 import net.ssehub.devopt.controllayer.network.MqttV3Client;
 import net.ssehub.devopt.controllayer.network.NetworkException;
+import net.ssehub.devopt.controllayer.utilities.GenericCallback;
+import net.ssehub.devopt.controllayer.utilities.GenericPropagator;
+import net.ssehub.devopt.controllayer.utilities.GenericQueue;
+import net.ssehub.devopt.controllayer.utilities.GenericQueue.QueueState;
 import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
- * This class realizes the singleton receiver for monitoring/runtime data from individual entities of the local layer.
- * In order to monitor these entities, a valid model describing them and their properties must be available to the
- * {@link ModelManager}, which includes the necessary {@link EntityInfo}. Hence, adding new or removing existing
- * observables (local entities) is done by the {@link ModelManager}, while individual instances can register as
- * {@link MonitoringDataReceptionCallback} to receive all monitoring data.
+ * This class realizes the threaded singleton receiver for monitoring/runtime data from individual entities. In order to
+ * monitor these entities, a valid model describing them and their properties must be available to the
+ * {@link ModelManager}. Hence, adding new or removing existing observables (entities) is done by the
+ * {@link ModelManager}, while individual components can register as callbacks to receive all monitoring data.
  * 
  * @author kroeher
  *
  */
-public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback {
-    
-    /**
-     * The singleton instance of this class.
-     */
-    public static final MonitoringDataReceiver INSTANCE = new MonitoringDataReceiver();
+public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpRequestCallback {
     
     /**
      * The identifier of this class, e.g. for printing messages.
@@ -55,14 +52,19 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
     private static final String ID = MonitoringDataReceiver.class.getSimpleName();
     
     /**
+     * The singleton instance of this class.
+     */
+    private static MonitoringDataReceiver instance = createInstance();
+    
+    /**
+     * The {@link Thread} in which the {@link #instance} is executed.
+     */
+    private static Thread instanceThread;
+    
+    /**
      * The local reference to the global {@link Logger}.
      */
     private Logger logger = Logger.INSTANCE;
-    
-    /**
-     * The list of other components to propagate each received message from all observables to.  
-     */
-    private List<MonitoringDataReceptionCallback> callbacks;
     
     /**
      * The mapping of all {@link MqttV3Client} instances created for receiving monitoring data from observables.
@@ -72,57 +74,134 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      * TODO Currently, MQTT support is enough, but to also support other channels as expected, the value type of this
      * map and, hence, its general access must be extended.
      */
-    private HashMap<String, MqttV3Client> observableInformation; 
+    private HashMap<String, MqttV3Client> observableInformation;
     
-    /*
-     * TODO Define and use a data structure that enables decoupling the reception of monitoring data from observables
-     * from propagating such data to callbacks. Otherwise propagation will block further reception of new data.
-     * One option is the use of a queue.
-     * Keep in mind that such asynchronous access (add new data while others read older data) needs synchronization.
+    /**
+     * The queue for storing received monitoring data. Removing stored monitoring data is exclusive to the
+     * {@link #monitoringDataPropagator}.
      */
+    private GenericQueue<MonitoringData> monitoringDataQueue;
+    
+    /**
+     * The propagator for removing monitoring data from the {@link #monitoringDataQueue} and passing them to the
+     * callbacks added via {@link #addCallback(GenericCallback)}.
+     */
+    private GenericPropagator<MonitoringData> monitoringDataPropagator;
+    
+    /**
+     * The {@link Thread} in which the {@link #monitoringDataPropagator} is executed. Hence, receiving new monitoring
+     * data and adding them to the {@link #monitoringDataQueue} occurs in the {@link #instanceThread}, while their
+     * removal and further processing happens in this thread without blocking the reception.
+     */
+    private Thread monitoringDataPropagatorThread;
     
     /**
      * Constructs a new {@link MonitoringDataReceiver} instance.
      */
     private MonitoringDataReceiver() {
-        callbacks = new ArrayList<MonitoringDataReceptionCallback>();
         observableInformation = new HashMap<String, MqttV3Client>();
+        monitoringDataQueue = new GenericQueue<MonitoringData>(100);
+        monitoringDataPropagator = new GenericPropagator<MonitoringData>(monitoringDataQueue);
+        monitoringDataQueue.setState(QueueState.OPEN);
+        monitoringDataPropagatorThread = new Thread(monitoringDataPropagator,
+                monitoringDataPropagator.getClass().getSimpleName());
+        monitoringDataPropagatorThread.start();
     }
     
     /**
-     * Adds the given callback to the list of all callbacks of this receiver. Elements in this list will be informed
-     * about any runtime data received from all observables managed by this receiver.
+     * Returns the threaded singleton instance of this class.
      * 
-     * @param callback the callback to add to the list all callbacks
+     * @return the singleton instance of this class
+     */
+    public static synchronized MonitoringDataReceiver getInstance() {
+        return instance;
+    }
+    
+    /**
+     * Creates a new {@link #MonitoringDataReceiver()}, adds this instance to the {@link #instanceThread}, and start it.
+     * Hence, the usage of this method must be equal to calling {@link Thread#start()}.
+     * 
+     * @return the created {@link MonitoringDataReceiver} instance or <code>null</code>, if the {@link #instanceThread}
+     *         already exists, which indicates that this method was already called before without calling
+     *         {@link #stop()} again
+     */
+    private static MonitoringDataReceiver createInstance() {
+        MonitoringDataReceiver instance = null;
+        if (instanceThread == null) {
+            Logger.INSTANCE.logInfo(ID, "Starting instance (thread)");
+            instance = new MonitoringDataReceiver();
+            instanceThread = new Thread(instance, ID);
+            instanceThread.start(); // this calls 'run()' of this runnable, which does nothing
+            Logger.INSTANCE.logInfo(ID, "Instance (thread) started");
+        }
+        return instance;
+    }
+    
+    /**
+     * Stops the {@link MonitoringDataReceiver} and its {@link Thread}. Being a singleton, the receiver cannot be used
+     * again after calling this method.
+     * 
+     * @throws MonitoringException if stopping internal threads fails
+     */
+    public synchronized void stop() throws MonitoringException {
+        if (instanceThread != null) {
+            logger.logInfo(ID, "Stopping monitoring data receiver");
+            // Remove all observables, which includes stopping the respective monitoring clients
+            Iterator<String> observableInformationKeysIterator = observableInformation.keySet().iterator();
+            while (observableInformationKeysIterator.hasNext()) {
+                removeObservable(observableInformationKeysIterator.next());
+            }
+            // Close queue, which also stops the monitoring data propagator
+            monitoringDataQueue.setState(QueueState.CLOSED);
+            String thread = null;
+            try {
+                thread = "monitoring data propagator";
+                monitoringDataPropagatorThread.join();
+                thread = "monitoring data receiver";
+                instanceThread.join();
+            } catch (InterruptedException e) {
+                throw new MonitoringException("Waiting for " + thread + " thread to join failed", e);
+            } finally {
+                monitoringDataPropagatorThread = null;                
+                instanceThread = null;
+                logger = null;
+                observableInformation.clear(); // Should be empty already, but ensure all elements are removed
+                observableInformation = null;
+                monitoringDataQueue = null;
+                monitoringDataPropagator = null;
+                instance = null;
+            }
+            // Global access to logger due to setting local reference to 'null' above
+            Logger.INSTANCE.logInfo(ID, "Monitoring data receiver stopped");
+        }
+    }
+    
+    /**
+     * Adds the given callback such that it will be informed about all monitoring data received from all observables
+     * managed by this receiver.
+     * 
+     * @param callback the callback to add
      * @return <code>true</code>, if the addition was successful; <code>false</code>, if the given callback is
-     *         <code>null</code>, the list already contains an equal object, or {@link Collection#add(Object)} returned
-     *         <code>false</code>
+     *         <code>null</code>, this receiver already contains an equal object, or {@link Collection#add(Object)}
+     *         returned <code>false</code>
      * @see #removeCallback(MonitoringDataReceptionCallback)
      */
-    public boolean addCallback(MonitoringDataReceptionCallback callback) {
-        boolean callbackAdded = false;
-        if (callback != null && !callbacks.contains(callback)) {
-            callbackAdded = callbacks.add(callback);
-        }
-        return callbackAdded;
+    public synchronized boolean addCallback(GenericCallback<MonitoringData> callback) {
+        return monitoringDataPropagator.addCallback(callback);
     }
     
     /**
-     * Removes the given callback from the list of all callbacks of this receiver. Hence, the given callback will not be
-     * called anymore about runtime data received from observables managed by this receiver.
+     * Removes the given callback such that it will not be informed anymore about monitoring data received from
+     * observables managed by this receiver.
      * 
-     * @param callback the callback to remove from the list all callbacks
+     * @param callback the callback to remove
      * @return <code>true</code>, if the removal was successful; <code>false</code>, if the given callback is
-     *         <code>null</code>, the list does not contain an equal object, or {@link Collection#remove(Object)}
+     *         <code>null</code>, this receiver does not contain an equal object, or {@link Collection#remove(Object)}
      *         returned <code>false</code>
      * @see #addCallback(MonitoringDataReceptionCallback)
      */
-    public boolean removeCallback(MonitoringDataReceptionCallback callback) {
-        boolean callbackRemoved = false;
-        if (callback != null && callbacks.contains(callback)) {
-            callbackRemoved = callbacks.remove(callback);
-        }
-        return callbackRemoved;
+    public synchronized boolean removeCallback(GenericCallback<MonitoringData> callback) {
+        return monitoringDataPropagator.removeCallback(callback);
     }
     
     /**
@@ -139,7 +218,7 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      *         connection could not be established
      * @see #removeObservable(String)
      */
-    public boolean addObservable(String identifier, String channel, String url, int port) {
+    public synchronized boolean addObservable(String identifier, String channel, String url, int port) {
         logger.logInfo(ID, "Adding observable \"" + identifier + "\"");
         boolean observableAdded = false;
         try {
@@ -177,7 +256,7 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
      *         connection could not be closed
      * @see #addObservable(String, String, String, int)
      */
-    public boolean removeObservable(String channel) {
+    public synchronized boolean removeObservable(String channel) {
         logger.logInfo(ID, "Removing observable for channel \"" + channel + "\"");
         boolean observableRemoved = false;
         if (channel != null && !channel.isBlank()) {
@@ -201,28 +280,6 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
             logger.logWarning(ID, "Removing observable without channel definition is not possible");
         }
         return observableRemoved;
-    }
-    
-    /**
-     * Sends the given (monitoring) data received via the given channel to all {@link #callbacks}.
-     * 
-     * @param channel the channel on which the monitoring data was received; this is the MQTT topic name or HTTP server
-     *        context name of the entity's monitoring scope as defined by its {@link EntityInfo} instance
-     * @param data the data to propagate
-     */
-    private void propagateMonitoringData(String channel, String data) {
-        // TODO this blocks further data reception - decouple this method calls from basic data reception
-        if (channel != null && !channel.isBlank()) {
-            if (data != null && !data.isBlank()) {                
-                for (MonitoringDataReceptionCallback callback : callbacks) {
-                    callback.monitoringDataReceived(channel, data);
-                }
-            } else {
-                logger.logDebug(ID, "Monitoring data not propagated", "No data to propagate");
-            }
-        } else {
-            logger.logDebug(ID, "Monitoring data not propagated", "No reception channel available");
-        }
     }
 
     /**
@@ -250,7 +307,8 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
         if (message != null) {
             byte[] payload = message.getPayload();
             if (payload != null) {
-                propagateMonitoringData(topic, new String(payload));
+                monitoringDataQueue.addElement(new MonitoringData(topic, new String(payload),
+                        System.currentTimeMillis()));
             }
         }
     }
@@ -269,7 +327,8 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
                 logger.logException(ID, exception);
             }
         } else {
-            propagateMonitoringData(request.getUri().getPath(), request.getBody());
+            monitoringDataQueue.addElement(new MonitoringData(request.getUri().getPath(), request.getBody(),
+                    System.currentTimeMillis()));
             int responseCode = 200; // "OK"
             String responseBody = "Monitoring data received";
             // TODO add correct response headers
@@ -284,6 +343,18 @@ public class MonitoringDataReceiver implements MqttCallback, HttpRequestCallback
     @Override
     public String getName() {
         return ID;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void run() {
+        /*
+         * This method does nothing except for being called by the 'instanceThread' at start. However, this instance is
+         * executed in its own thread allowing to receive monitoring data without blocking any other components of this
+         * controller.
+         */
     }
 
 }
