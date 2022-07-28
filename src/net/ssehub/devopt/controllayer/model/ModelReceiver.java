@@ -263,9 +263,10 @@ public class ModelReceiver implements Runnable, MqttCallback, HttpRequestCallbac
      * Starts this instance by either subscribing to the MQTT broker and its registration topic or starting the local
      * HTTP server with its registration context. Which alternative is executed depends on the protocol given to the
      * constructor of this instance. Further, this method sets the {@link #messageQueue} state to
-     * {@link QueueState#OPEN} and starts the {@link #messagePropagator} in its new {@link #messagePropagatorThread}.
-     *   
-     * @throws ModelException if subscribing the client or starting the server fails
+     * {@link QueueState#OPEN} and starts the {@link #messagePropagator} in its {@link #messagePropagatorThread}.<br>
+     * <br>
+     * If starting the instance was successful, can be checked via {@link #networkConnectionEstablished} and 
+     * {@link #instanceStartException}.
      */
     private void startInstance() {
         if (mqttClient != null) {
