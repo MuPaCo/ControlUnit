@@ -27,13 +27,13 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
 
 /**
  * This class realizes a simple receiver for aggregated data produced by the controller during scenario tests. An
- * instance of this class can connect to the respective aggregation channel to save all aggregated data
- * (received messages) in a list, which it provides for tests after execution of a scenario. 
+ * instance of this class runs in its own {@link Thread} and can connect to the respective aggregation channel to save
+ * all aggregated data (received messages) in a list, which it provides for tests after execution of a scenario. 
  * 
  * @author kroeher
  *
  */
-public class AggregationReceiver implements MqttCallback {
+public class AggregationReceiver implements Runnable, MqttCallback {
     
     /**
      * The identifier of this class, e.g., for logging messages. 
@@ -56,6 +56,11 @@ public class AggregationReceiver implements MqttCallback {
     private String aggregationChannel;
     
     /**
+     * The {@link Thread} in which this instance is executed.
+     */
+    private Thread instanceThread;
+    
+    /**
      * The list of all messages arrived at the {@link #aggregationChannel} during the runtime of this instance.
      */
     private List<String> arrivedMessages;
@@ -73,25 +78,30 @@ public class AggregationReceiver implements MqttCallback {
         client = new MqttV3Client(ID, mqttBrokerUrl, mqttBrokerPort, null, null);
         this.aggregationChannel = aggregationChannel;
         arrivedMessages = new ArrayList<String>();
+        instanceThread = null;
     }
     
     /**
-     * Starts receiving aggregated data by subscribing the internal client to the topic defined via the constructor of
-     * this instance.
+     * Starts this instance in its own {@link Thread}, which in turn starts receiving aggregated data by subscribing the
+     * internal client to the topic defined via the constructor of this instance.
      *  
      * @throws NetworkException if subscribing to the defined topic fails
      */
     public void start() throws NetworkException {
-        client.subscribe(aggregationChannel, 2, this);
+        instanceThread = new Thread(this, ID);
+        instanceThread.start();
     }
     
     /**
-     * Stops receiving aggregated data by closing the internal client.
+     * Stops this instance from receiving aggregated data by closing the internal client. This method blocks until the
+     * {@link Thread} of this instance has joined.
      *  
      * @throws NetworkException if closing the client fails
+     * @throws InterruptedException if joining the thread fails
      */
-    public void stop() throws NetworkException {
+    public void stop() throws NetworkException, InterruptedException {
         client.close();
+        instanceThread.join();
     }
     
     /**
@@ -124,7 +134,20 @@ public class AggregationReceiver implements MqttCallback {
     public void messageArrived(String topic, MqttMessage message) throws Exception {
         String messageString = new String(message.getPayload());
         arrivedMessages.add(messageString);
-        logger.logInfo(ID, "Message arrived", "Topic: " + topic, "Message: " + messageString);
+        logger.logInfo(ID, "Message arrived", "Topic: " + topic, "Message: " + messageString,
+                "Total message count: " + arrivedMessages.size());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void run() {
+        try {
+            client.subscribe(aggregationChannel, 2, this);
+        } catch (NetworkException e) {
+            logger.logException(ID, e);
+        }
     }
     
 }

@@ -130,7 +130,7 @@ public class Scenario01 extends AbstractScenario {
         }
         try {
             aggregationReceiver.stop();
-        } catch (NetworkException e) {
+        } catch (NetworkException | InterruptedException e) {
             fail("Stopping the aggregation receiver failed unexpectedly", e);
         }
         File toDelete = new File(CONFIGURED_MODELS_DIRECTORY_PATH);
