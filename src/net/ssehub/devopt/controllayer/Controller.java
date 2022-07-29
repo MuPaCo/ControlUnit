@@ -117,10 +117,10 @@ public class Controller {
             // Do not reorder! Components remove themselves from each other, which requires exactly the following order
             logger.logInfo(ID, "Stopping model manager and removing observables");
             modelManager.stop(); // This also stops the model receiver
-            logger.logInfo(ID, "Deleting aggregator");
-            Aggregator.tearDown();
             logger.logInfo(ID, "Stopping monitoring data receiver");
             MonitoringDataReceiver.getInstance().stop();
+            logger.logInfo(ID, "Deleting aggregator");
+            Aggregator.tearDown();
             logger.logInfo(ID, "Stopping EASy-Producer components");
             EASyUtilities.INSTANCE.stopEASyComponents();
             controllerStopped = true;
