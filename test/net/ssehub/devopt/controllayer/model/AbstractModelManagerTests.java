@@ -24,6 +24,7 @@ import net.ssehub.devopt.controllayer.AbstractEASyBasedTests;
 import net.ssehub.devopt.controllayer.AllTests;
 import net.ssehub.devopt.controllayer.Setup;
 import net.ssehub.devopt.controllayer.SetupException;
+import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiver;
 import net.ssehub.devopt.controllayer.utilities.FileUtilities;
 import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
@@ -70,12 +71,13 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
     
     /**
      * Constructs a new {@link AbstractModelManagerTests} instance. In particular, if this constructor is called the
-     * first time, it creates the {@link #testModelManagerInstance} using the {@link #testSetup} constructed with the
-     * {@link #MODEL_MANAGER_TEST_CONFIGURATION_PATH}. Calling this constructor multiple times without
-     * {@link #tearDown()} has no further effect.
+     * first time, it creates the {@link MonitoringDataReceiver} instance and the {@link #testModelManagerInstance}
+     * using the {@link #testSetup} constructed with the {@link #MODEL_MANAGER_TEST_CONFIGURATION_PATH}. Calling this
+     * constructor multiple times without {@link #tearDown()} has no further effect.
      */
     protected AbstractModelManagerTests() {
-        if (testModelManagerInstance == null) {            
+        if (testModelManagerInstance == null) { 
+            MonitoringDataReceiver.createInstance();
             try {
                 testSetup = new Setup(MODEL_MANAGER_TEST_CONFIGURATION_PATH);
                 ModelManager.setUp(testSetup);
@@ -88,8 +90,9 @@ public class AbstractModelManagerTests extends AbstractEASyBasedTests {
     }
     
     /**
-     * Deletes the model directory and all its content defined in the {@link #testSetup}. This method is called exactly
-     * once after all test classes of the test suite are executed.
+     * Deletes the model directory and all its content defined in the {@link #testSetup} as well as the
+     * {@link MonitoringDataReceiver} instance. This method is called exactly once after all test classes of the test
+     * suite are executed.
      * 
      * @see AllTests#tearDown()
      */

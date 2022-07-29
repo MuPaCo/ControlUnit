@@ -54,10 +54,7 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
     /**
      * The singleton instance of this class.
      */
-    // checkstyle: stop declaration order check
-    // constructor requires ID, hence, ignore ordering once for this singleton
-    public static final MonitoringDataReceiver INSTANCE = new MonitoringDataReceiver();
-    // checkstyle: resume declaration order check
+    private static MonitoringDataReceiver instance;
     
     /**
      * The {@link Thread} in which the {@link #instance} is executed.
@@ -129,8 +126,28 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
     }
     
     /**
-     * Stops the {@link MonitoringDataReceiver} and its {@link Thread}. Due to being a singleton, the receiver cannot be
-     * used again after calling this method.
+     * Returns the singleton instance of this class. <b>Note</b> that it is required to call {@link #createInstance()}
+     * exactly once before calling this method successfully.
+     * 
+     * @return the singleton instance of this class, or <code>null</code>, if it was not created yet or it was stopped
+     *         already
+     */
+    public static MonitoringDataReceiver getInstance() {
+        return instance;
+    }
+    
+    /**
+     * Creates the singleton instance of this class in its own {@link Thread}.
+     */
+    public static void createInstance() {
+        if (instance == null) {
+            instance = new MonitoringDataReceiver();
+        }
+    }
+    
+    /**
+     * Stops the {@link MonitoringDataReceiver} and its {@link Thread}. A successful stop also deletes the singleton
+     * instance of this class.
      * 
      * @throws MonitoringException if stopping internal threads fails
      */
@@ -161,6 +178,7 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
                 monitoringDataQueue = null;
                 monitoringDataPropagator.removeCallbacks();
                 monitoringDataPropagator = null;
+                instance = null;
             }
             // Global access to logger due to setting local reference to 'null' above
             Logger.INSTANCE.logInfo(ID, "Monitoring data receiver stopped");

@@ -52,6 +52,7 @@ public class Controller {
      * @param args the command-line arguments as supplied to {@link #main(String[])}
      */
     public Controller(String[] args) {
+        // Do not reorder! Components rely on each other, which requires exactly the following order
         /*
          * The very first call must always be loading the setup, which includes configuring the logger.
          * Hence, do not call the logger before loading the setup.
@@ -72,6 +73,12 @@ public class Controller {
             logger.logException(ID, e);
             System.exit(1);
         }
+        /*
+         * Start the monitoring data receiver before aggregator and model management. The aggregator adds itself as
+         * callback, while the model manager will add observables from saved IVML models during start-up.
+         */
+        logger.logInfo(ID, "Creating monitoring data receiver");
+        MonitoringDataReceiver.createInstance();
         /*
          * Start the aggregator, which is a passive component. It will become active, if it receives monitoring data
          * propagated by the monitoring data receiver. As that receiver relies on the models managed by the model
@@ -113,7 +120,7 @@ public class Controller {
             logger.logInfo(ID, "Deleting aggregator");
             Aggregator.tearDown();
             logger.logInfo(ID, "Stopping monitoring data receiver");
-            MonitoringDataReceiver.INSTANCE.stop();
+            MonitoringDataReceiver.getInstance().stop();
             logger.logInfo(ID, "Stopping EASy-Producer components");
             EASyUtilities.INSTANCE.stopEASyComponents();
             controllerStopped = true;

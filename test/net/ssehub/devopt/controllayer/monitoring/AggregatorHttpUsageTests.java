@@ -41,7 +41,7 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  * @author kroeher
  *
  */
-public class AggregatorHttpUsageTests implements HttpRequestCallback {
+public class AggregatorHttpUsageTests extends AbstractMonitoringDataReceiverTest implements HttpRequestCallback {
     
     /**
      * The constant string denoting the path to the test configuration file used to create the {@link Setup} instance.

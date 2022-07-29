@@ -38,7 +38,7 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  *
  */
 @RunWith(Parameterized.class)
-public class AggregatorSetupTests {
+public class AggregatorSetupTests extends AbstractMonitoringDataReceiverTest {
     
     /**
      * The constant string denoting the path to the directory containing test configuration files used to create

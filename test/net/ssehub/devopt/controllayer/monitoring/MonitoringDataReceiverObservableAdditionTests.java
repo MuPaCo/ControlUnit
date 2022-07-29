@@ -36,7 +36,7 @@ import net.ssehub.devopt.controllayer.utilities.Logger;
  *
  */
 @RunWith(Parameterized.class)
-public class MonitoringDataReceiverObservableAdditionTests {
+public class MonitoringDataReceiverObservableAdditionTests extends AbstractMonitoringDataReceiverTest {
     
     /**
      * The identifier of this class, e.g., for logging messages. 
@@ -152,7 +152,7 @@ public class MonitoringDataReceiverObservableAdditionTests {
      */
     @BeforeClass
     public static void setUp() {
-        if (!MonitoringDataReceiver.INSTANCE.addCallback(TEST_CALLBACK)) {
+        if (!testMonitoringDataReceiverInstance.addCallback(TEST_CALLBACK)) {
             fail("Adding test callback \"" + TEST_CALLBACK + "\" failed");
         }
         for (int i = 0; i < TEST_CHANNELS.length; i++) {
@@ -198,11 +198,11 @@ public class MonitoringDataReceiverObservableAdditionTests {
      */
     @AfterClass
     public static void tearDown() {
-        if (!MonitoringDataReceiver.INSTANCE.removeCallback(TEST_CALLBACK)) {
+        if (!testMonitoringDataReceiverInstance.removeCallback(TEST_CALLBACK)) {
             fail("Removing test callback \"" + TEST_CALLBACK + "\" failed");
         }
         for (int i = 0; i < TEST_CHANNELS.length; i++) {
-            if (!MonitoringDataReceiver.INSTANCE.removeObservable(TEST_CHANNELS[i])) {
+            if (!testMonitoringDataReceiverInstance.removeObservable(TEST_CHANNELS[i])) {
                 fail("Removing test observable at channel \"" + TEST_CHANNELS[i] + "\" failed");
             }
         }
@@ -221,7 +221,7 @@ public class MonitoringDataReceiverObservableAdditionTests {
     @Test
     public void testAddObservable() {
         assertEquals(expectedAdditionReturnValue,
-                MonitoringDataReceiver.INSTANCE.addObservable(testIdentifier, testChannel, testUrl, testPort),
+                testMonitoringDataReceiverInstance.addObservable(testIdentifier, testChannel, testUrl, testPort),
                 "Wrong observable addition result");
         assertEquals(expectedAdditionReturnValue, isMonitoringEstablished(testChannel, testUrl, testPort),
                 "Monitoring must follow observable addition result");

@@ -41,7 +41,7 @@ import net.ssehub.devopt.controllayer.utilities.FileUtilitiesException;
  * @author kroeher
  *
  */
-public class AggregatorMqttUsageTests implements MqttCallback {
+public class AggregatorMqttUsageTests extends AbstractMonitoringDataReceiverTest implements MqttCallback {
 
     /**
      * The constant string denoting the path to the test configuration file used to create the {@link Setup} instance.

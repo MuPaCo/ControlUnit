@@ -32,7 +32,7 @@ import net.ssehub.devopt.controllayer.utilities.GenericCallback;
  *
  */
 @RunWith(Parameterized.class)
-public class MonitoringDataReceiverCallbackRemovalTests {
+public class MonitoringDataReceiverCallbackRemovalTests extends AbstractMonitoringDataReceiverTest {
     
     /**
      * One of two {@link GenericCallback} instances used in the tests of this class. Before any test is executed, this
@@ -105,10 +105,10 @@ public class MonitoringDataReceiverCallbackRemovalTests {
      */
     @BeforeClass
     public static void addTestCallbacks() {
-        if (!MonitoringDataReceiver.INSTANCE.addCallback(TEST_CALLBACK_1)) {
+        if (!testMonitoringDataReceiverInstance.addCallback(TEST_CALLBACK_1)) {
             fail("Adding test callback \"" + TEST_CALLBACK_1 + "\" failed");
         }
-        if (!MonitoringDataReceiver.INSTANCE.addCallback(TEST_CALLBACK_2)) {
+        if (!testMonitoringDataReceiverInstance.addCallback(TEST_CALLBACK_2)) {
             fail("Adding test callback \"" + TEST_CALLBACK_2 + "\" failed");
         }
     }
@@ -119,7 +119,7 @@ public class MonitoringDataReceiverCallbackRemovalTests {
      */
     @Test
     public void testRemoveCallback() {
-        assertEquals(expectedRemovalReturnValue, MonitoringDataReceiver.INSTANCE.removeCallback(testCallback),
+        assertEquals(expectedRemovalReturnValue, testMonitoringDataReceiverInstance.removeCallback(testCallback),
                 "Wrong callback removal result");
     }
     
