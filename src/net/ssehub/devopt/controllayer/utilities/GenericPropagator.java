@@ -81,6 +81,14 @@ public class GenericPropagator<T> implements Runnable {
         }
         return callbackRemoved;
     }
+    
+    /**
+     * Removes all callbacks from the list of callbacks to inform about elements in the queue, which this instance
+     * received during construction.
+     */
+    public synchronized void removeCallbacks() {
+        callbacks.clear();
+    }
 
     /**
      * Starts constantly checking the internal queue for elements to inform the callbacks about. This method cannot be
