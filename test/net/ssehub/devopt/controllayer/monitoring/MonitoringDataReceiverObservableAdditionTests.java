@@ -152,7 +152,7 @@ public class MonitoringDataReceiverObservableAdditionTests {
      */
     @BeforeClass
     public static void setUp() {
-        if (!MonitoringDataReceiver.getInstance().addCallback(TEST_CALLBACK)) {
+        if (!MonitoringDataReceiver.INSTANCE.addCallback(TEST_CALLBACK)) {
             fail("Adding test callback \"" + TEST_CALLBACK + "\" failed");
         }
         for (int i = 0; i < TEST_CHANNELS.length; i++) {
@@ -198,11 +198,11 @@ public class MonitoringDataReceiverObservableAdditionTests {
      */
     @AfterClass
     public static void tearDown() {
-        if (!MonitoringDataReceiver.getInstance().removeCallback(TEST_CALLBACK)) {
+        if (!MonitoringDataReceiver.INSTANCE.removeCallback(TEST_CALLBACK)) {
             fail("Removing test callback \"" + TEST_CALLBACK + "\" failed");
         }
         for (int i = 0; i < TEST_CHANNELS.length; i++) {
-            if (!MonitoringDataReceiver.getInstance().removeObservable(TEST_CHANNELS[i])) {
+            if (!MonitoringDataReceiver.INSTANCE.removeObservable(TEST_CHANNELS[i])) {
                 fail("Removing test observable at channel \"" + TEST_CHANNELS[i] + "\" failed");
             }
         }
@@ -221,7 +221,7 @@ public class MonitoringDataReceiverObservableAdditionTests {
     @Test
     public void testAddObservable() {
         assertEquals(expectedAdditionReturnValue,
-                MonitoringDataReceiver.getInstance().addObservable(testIdentifier, testChannel, testUrl, testPort),
+                MonitoringDataReceiver.INSTANCE.addObservable(testIdentifier, testChannel, testUrl, testPort),
                 "Wrong observable addition result");
         assertEquals(expectedAdditionReturnValue, isMonitoringEstablished(testChannel, testUrl, testPort),
                 "Monitoring must follow observable addition result");

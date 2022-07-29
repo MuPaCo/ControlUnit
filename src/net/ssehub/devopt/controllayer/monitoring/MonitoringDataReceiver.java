@@ -54,12 +54,27 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
     /**
      * The singleton instance of this class.
      */
-    private static MonitoringDataReceiver instance = createInstance();
+    // checkstyle: stop declaration order check
+    // constructor requires ID, hence, ignore ordering once for this singleton
+    public static final MonitoringDataReceiver INSTANCE = new MonitoringDataReceiver();
+    // checkstyle: resume declaration order check
     
     /**
      * The {@link Thread} in which the {@link #instance} is executed.
      */
     private static Thread instanceThread;
+    
+    /**
+     * The definition of whether {@link #run()} successfully established this instance (<code>true</code>) or not
+     * (<code>false</code>). The default value is <code>false</code>.<br>
+     * <br>
+     * Declaring this attribute as <code>volatile</code> is mandatory as it is a shared variable between the thread,
+     * which creates the instance of this class, and the {@link #instanceThread}. It enables blocking the caller of
+     * {@link #MonitoringDataReceiver()} until establishing the instance is finished, which spans the two threads.
+     * Blocking the caller is necessary to ensure adding or removing callbacks or observables does not yield a
+     * {@link NullPointerException} as instantiation is not completed.
+     */
+    private volatile boolean instanceRunning;
     
     /**
      * The local reference to the global {@link Logger}.
@@ -96,50 +111,26 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
     private Thread monitoringDataPropagatorThread;
     
     /**
-     * Constructs a new {@link MonitoringDataReceiver} instance.
+     * Constructs a new {@link MonitoringDataReceiver} instance and starts it in its own {@link Thread}.
      */
     private MonitoringDataReceiver() {
-        observableInformation = new HashMap<String, MqttV3Client>();
-        monitoringDataQueue = new GenericQueue<MonitoringData>(100);
-        monitoringDataPropagator = new GenericPropagator<MonitoringData>(monitoringDataQueue);
-        monitoringDataQueue.setState(QueueState.OPEN);
-        monitoringDataPropagatorThread = new Thread(monitoringDataPropagator,
-                monitoringDataPropagator.getClass().getSimpleName());
-        monitoringDataPropagatorThread.start();
-    }
-    
-    /**
-     * Returns the threaded singleton instance of this class.
-     * 
-     * @return the singleton instance of this class
-     */
-    public static synchronized MonitoringDataReceiver getInstance() {
-        return instance;
-    }
-    
-    /**
-     * Creates a new {@link #MonitoringDataReceiver()}, adds this instance to the {@link #instanceThread}, and start it.
-     * Hence, the usage of this method must be equal to calling {@link Thread#start()}.
-     * 
-     * @return the created {@link MonitoringDataReceiver} instance or <code>null</code>, if the {@link #instanceThread}
-     *         already exists, which indicates that this method was already called before without calling
-     *         {@link #stop()} again
-     */
-    private static MonitoringDataReceiver createInstance() {
-        MonitoringDataReceiver instance = null;
-        if (instanceThread == null) {
-            Logger.INSTANCE.logInfo(ID, "Starting instance (thread)");
-            instance = new MonitoringDataReceiver();
-            instanceThread = new Thread(instance, ID);
-            instanceThread.start(); // this calls 'run()' of this runnable, which does nothing
-            Logger.INSTANCE.logInfo(ID, "Instance (thread) started");
+        Logger.INSTANCE.logInfo(ID, "Starting instance (thread)");
+        instanceRunning = false; // set to 'true' at the end of 'run()' (see loop below)
+        instanceThread = new Thread(this, ID);
+        instanceThread.start();
+        while (!instanceRunning) {
+            /*
+             * Block finalizing construction of the singleton instance until it is actually running. This instances
+             * runs, if 'run()' is executed successfully. Hence, 'instanceRunning' is set to 'true' at the end of that
+             * method. 
+             */
         }
-        return instance;
+        Logger.INSTANCE.logInfo(ID, "Instance (thread) started");
     }
     
     /**
-     * Stops the {@link MonitoringDataReceiver} and its {@link Thread}. Being a singleton, the receiver cannot be used
-     * again after calling this method.
+     * Stops the {@link MonitoringDataReceiver} and its {@link Thread}. Due to being a singleton, the receiver cannot be
+     * used again after calling this method.
      * 
      * @throws MonitoringException if stopping internal threads fails
      */
@@ -168,8 +159,8 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
                 observableInformation.clear(); // Should be empty already, but ensure all elements are removed
                 observableInformation = null;
                 monitoringDataQueue = null;
+                monitoringDataPropagator.removeCallbacks();
                 monitoringDataPropagator = null;
-                instance = null;
             }
             // Global access to logger due to setting local reference to 'null' above
             Logger.INSTANCE.logInfo(ID, "Monitoring data receiver stopped");
@@ -350,11 +341,14 @@ public class MonitoringDataReceiver implements Runnable, MqttCallback, HttpReque
      */
     @Override
     public void run() {
-        /*
-         * This method does nothing except for being called by the 'instanceThread' at start. However, this instance is
-         * executed in its own thread allowing to receive monitoring data without blocking any other components of this
-         * controller.
-         */
+        observableInformation = new HashMap<String, MqttV3Client>();
+        monitoringDataQueue = new GenericQueue<MonitoringData>(100);
+        monitoringDataPropagator = new GenericPropagator<MonitoringData>(monitoringDataQueue);
+        monitoringDataQueue.setState(QueueState.OPEN);
+        monitoringDataPropagatorThread = new Thread(monitoringDataPropagator,
+                monitoringDataPropagator.getClass().getSimpleName());
+        monitoringDataPropagatorThread.start();
+        instanceRunning = true;
     }
 
 }

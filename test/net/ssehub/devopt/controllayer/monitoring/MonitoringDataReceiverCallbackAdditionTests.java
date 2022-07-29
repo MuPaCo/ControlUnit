@@ -105,10 +105,10 @@ public class MonitoringDataReceiverCallbackAdditionTests {
      */
     @AfterClass
     public static void removeTestCallbacks() {
-        if (!MonitoringDataReceiver.getInstance().removeCallback(TEST_CALLBACK_1)) {
+        if (!MonitoringDataReceiver.INSTANCE.removeCallback(TEST_CALLBACK_1)) {
             fail("Removing test callback \"" + TEST_CALLBACK_1 + "\" failed");
         }
-        if (!MonitoringDataReceiver.getInstance().removeCallback(TEST_CALLBACK_2)) {
+        if (!MonitoringDataReceiver.INSTANCE.removeCallback(TEST_CALLBACK_2)) {
             fail("Removing test callback \"" + TEST_CALLBACK_2 + "\" failed");
         }
     }
@@ -119,7 +119,7 @@ public class MonitoringDataReceiverCallbackAdditionTests {
      */
     @Test
     public void testAddCallback() {
-        assertEquals(expectedAdditionReturnValue, MonitoringDataReceiver.getInstance().addCallback(testCallback),
+        assertEquals(expectedAdditionReturnValue, MonitoringDataReceiver.INSTANCE.addCallback(testCallback),
                 "Wrong callback addition result");
     }
     

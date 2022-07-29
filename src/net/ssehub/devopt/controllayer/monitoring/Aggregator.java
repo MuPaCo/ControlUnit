@@ -125,7 +125,7 @@ public class Aggregator implements GenericCallback<MonitoringData>, HttpResponse
             if (setup != null) {
                 instance = new Aggregator();
                 instance.prepareDistribution(setup);
-                if (!MonitoringDataReceiver.getInstance().addCallback(instance)) {
+                if (!MonitoringDataReceiver.INSTANCE.addCallback(instance)) {
                     throw new MonitoringException("Adding aggregator as monitoring data receiver callback failed");
                 }
             } else {
@@ -144,13 +144,9 @@ public class Aggregator implements GenericCallback<MonitoringData>, HttpResponse
      */
     public static void tearDown() throws MonitoringException {
         if (instance != null) {
-            if (MonitoringDataReceiver.getInstance() == null
-                    || MonitoringDataReceiver.getInstance().removeCallback(instance)) {                
-                instance.destruct();
-                instance = null;
-            } else {
-                throw new MonitoringException("Removing aggregator as monitoring data receiver callback failed");
-            }
+            MonitoringDataReceiver.INSTANCE.removeCallback(instance);
+            instance.destruct();
+            instance = null;
         } else {
             throw new MonitoringException("Aggregator instance already teared down");
         }

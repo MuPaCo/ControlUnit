@@ -389,7 +389,7 @@ public class ModelManager implements Runnable, GenericCallback<String> {
         EntityInfo currentEntityInfo;
         while (entityInformationKeysIterator.hasNext()) {
             currentEntityInfo = entityInformation.get(entityInformationKeysIterator.next());
-            if (!MonitoringDataReceiver.getInstance().removeObservable(currentEntityInfo.getMonitoringChannel())) {
+            if (!MonitoringDataReceiver.INSTANCE.removeObservable(currentEntityInfo.getMonitoringChannel())) {
                 logger.logError(ID, "Stopping monitoring of " + currentEntityInfo.toString() + " failed",
                         "No further actions possible");
             }
@@ -477,7 +477,7 @@ public class ModelManager implements Runnable, GenericCallback<String> {
      * @return <code>true</code>, if the addition was successful; <code>false</code> otherwise
      */
     private boolean establishMonitoring(EntityInfo observableInfo) {
-        return MonitoringDataReceiver.getInstance().addObservable(observableInfo.getIdentifier(),
+        return MonitoringDataReceiver.INSTANCE.addObservable(observableInfo.getIdentifier(),
                 observableInfo.getMonitoringChannel(), observableInfo.getMonitoringUrl(),
                 observableInfo.getMonitoringPort());
     }

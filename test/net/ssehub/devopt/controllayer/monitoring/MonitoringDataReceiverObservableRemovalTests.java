@@ -126,11 +126,11 @@ public class MonitoringDataReceiverObservableRemovalTests {
      */
     @BeforeClass
     public static void setUp() {
-        if (!MonitoringDataReceiver.getInstance().addCallback(TEST_CALLBACK)) {
+        if (!MonitoringDataReceiver.INSTANCE.addCallback(TEST_CALLBACK)) {
             fail("Adding test callback \"" + TEST_CALLBACK + "\" failed");
         }
         for (int i = 0; i < TEST_CHANNELS.length; i++) {
-            if (!MonitoringDataReceiver.getInstance()
+            if (!MonitoringDataReceiver.INSTANCE
                     .addObservable("TestObservable" + (i + 1), TEST_CHANNELS[i], TEST_BROKER_URL, TEST_BROKER_PORT)
                     || !isMonitoringEstablished(TEST_CHANNELS[i], TEST_BROKER_URL, TEST_BROKER_PORT)) {
                 fail("Adding test observable at channel \"" + TEST_CHANNELS[i] + "\" failed");                
@@ -174,11 +174,11 @@ public class MonitoringDataReceiverObservableRemovalTests {
      */
     @AfterClass
     public static void tearDown() {
-        if (!MonitoringDataReceiver.getInstance().removeCallback(TEST_CALLBACK)) {
+        if (!MonitoringDataReceiver.INSTANCE.removeCallback(TEST_CALLBACK)) {
             fail("Removing test callback \"" + TEST_CALLBACK + "\" failed");
         }
         for (int i = 0; i < TEST_CHANNELS.length; i++) {
-            if (MonitoringDataReceiver.getInstance().removeObservable(TEST_CHANNELS[i]) 
+            if (MonitoringDataReceiver.INSTANCE.removeObservable(TEST_CHANNELS[i]) 
                     || isMonitoringEstablished(TEST_CHANNELS[i], TEST_BROKER_URL, TEST_BROKER_PORT)) {
                 fail("Monitoring  at channel \"" + TEST_CHANNELS[i] + "\" must not be available");
             }
@@ -199,7 +199,7 @@ public class MonitoringDataReceiverObservableRemovalTests {
     @Test
     public void testRemoveObservable() {
         assertEquals(expectedRemovalReturnValue,
-                MonitoringDataReceiver.getInstance().removeObservable(testChannel),
+                MonitoringDataReceiver.INSTANCE.removeObservable(testChannel),
                 "Wrong observable removal result");
         if (expectedRemovalReturnValue) {
             // Removal for the current channel expected; hence, there must not be any monitoring for that channel
