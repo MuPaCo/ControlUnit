@@ -144,7 +144,9 @@ public class Aggregator implements GenericCallback<MonitoringData>, HttpResponse
      */
     public static void tearDown() throws MonitoringException {
         if (instance != null) {
-            MonitoringDataReceiver.getInstance().removeCallback(instance);
+            if (MonitoringDataReceiver.getInstance() != null) {                
+                MonitoringDataReceiver.getInstance().removeCallback(instance);
+            }
             instance.destruct();
             instance = null;
         } else {
