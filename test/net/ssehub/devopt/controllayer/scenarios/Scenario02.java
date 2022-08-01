@@ -113,7 +113,7 @@ public class Scenario02 extends AbstractScenario {
             entityIdentifier = "Entity" + entityNumber;
             entityMonitoringChannel = entityIdentifier + "Channel";
             entityClient = new MqttV3Client(entityIdentifier + "Client", MQTT_BROKER_URL, MQTT_BROKER_PORT, null, null);
-            entityModel = getModel(entityIdentifier + "Model", entityIdentifier, entityMonitoringChannel);
+            entityModel = getModel(entityIdentifier, entityMonitoringChannel);
             this.monitoringData = monitoringData;
         }
 

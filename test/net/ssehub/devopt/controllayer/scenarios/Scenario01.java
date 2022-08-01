@@ -93,7 +93,7 @@ public class Scenario01 extends AbstractScenario {
         String entityIdentifier;
         for (int i = 0; i < entityClients.length; i++) {
             entityIdentifier = "Entity" + (i + 1);
-            String entityModel = getModel(entityIdentifier + "Model", entityIdentifier, entityIdentifier + "Channel");
+            String entityModel = getModel(entityIdentifier, entityIdentifier + "Channel");
             try {
                 entityClients[i].publish(REGISTRATION_CHANNEL, 2, entityModel.getBytes());
                 Thread.sleep(1000); // Add a delay to support traceability during execution

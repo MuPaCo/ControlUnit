@@ -22,6 +22,7 @@ import org.junit.Test;
 import net.ssehub.devopt.controllayer.AllTests;
 import net.ssehub.devopt.controllayer.Controller;
 import net.ssehub.devopt.controllayer.utilities.Logger;
+import net.ssehub.devopt.controllayer.utilities.ModelGenerator;
 
 /**
  * This abstract class provides basic attributes and auxiliary methods commonly used by specific scenario tests.
@@ -164,57 +165,15 @@ public abstract class AbstractScenario {
      * {@link Controller} and its components. Further, this method relies on the {@link #MQTT_BROKER_URL} and the
      * {@link #MQTT_BROKER_PORT} to define the monitoring information in the model using the given channel.
      * 
-     * @param projectName the name of the IVML project to generate; must not be <code>null</code> nor <i>blank</i>
      * @param entityIdentifier the identifier of the entity for which the model is generated; must not be
      *        <code>null</code> nor <i>blank</i>
      * @param monitoringChannel the channel (MQTT topic) on which the entity, for which the model is generated, sends
      *        its monitoring data; must not be <code>null</code> nor <i>blank</i>
      * @return the custom IVML model
      */
-    protected String getModel(String projectName, String entityIdentifier, String monitoringChannel) {
-        String model = "project " + projectName + " {\r\n"
-                + "\r\n"
-                + "    import DevOpt_System;\r\n"
-                + "    \r\n"
-                + "    Identification entityIdentification = {\r\n"
-                + "        identifier = \"" + entityIdentifier + "\",\r\n"
-                + "        host = \"192.168.1.11\",\r\n"
-                + "        port = 1883\r\n"
-                + "    };\r\n"
-                + "\r\n"
-                + "    IdentificationDescription identificationDescription = {\r\n"
-                + "        description = entityIdentification\r\n"
-                + "    };\r\n"
-                + "    \r\n"
-                + "    IntegerParameter entityPowerBalance = {\r\n"
-                + "        name = \"Power Balance\",\r\n"
-                + "        value = null\r\n"
-                + "    };\r\n"
-                + "    \r\n"
-                + "    RuntimeDate entityMonitoring = {\r\n"
-                + "        timestamp = null,\r\n"
-                + "        monitoringScope = \"" + monitoringChannel + "@" + MQTT_BROKER_URL + ":" + MQTT_BROKER_PORT
-                                + "\",\r\n"
-                + "        value = entityPowerBalance,\r\n"
-                + "        expressions = null\r\n"
-                + "    };\r\n"
-                + "    \r\n"
-                + "    RuntimeDescription runtimeDescription = {\r\n"
-                + "        description = entityMonitoring\r\n"
-                + "    };\r\n"
-                + "    \r\n"
-                + "    EntityDescription observableDescription = {\r\n"
-                + "        identificationDescription,\r\n"
-                + "        runtimeDescription\r\n"
-                + "    };\r\n"
-                + "    \r\n"
-                + "    Entity observable = {\r\n"
-                + "        name = \"Observable\",\r\n"
-                + "        description = observableDescription\r\n"
-                + "    };\r\n"
-                + "    \r\n"
-                + "}";
-        return model;
+    protected String getModel(String entityIdentifier, String monitoringChannel) {
+        return ModelGenerator.generate(entityIdentifier, "192.168.1.11", 1883, monitoringChannel, MQTT_BROKER_URL,
+                MQTT_BROKER_PORT);
     }
     
 }
