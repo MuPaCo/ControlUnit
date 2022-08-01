@@ -60,7 +60,7 @@ public class Scenario01 extends AbstractScenario {
     private static final String[] EXPECTED_AGGREGATION_RESULTS = {"1", "3", "0", "-8", "22", "25", "32", "0", "18"};
     
     /**
-     * The instance to received aggregated data from the controller.
+     * The instance to receive aggregated data from the controller.
      */
     private AggregationReceiver aggregationReceiver;
     
