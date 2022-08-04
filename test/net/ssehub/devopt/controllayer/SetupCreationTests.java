@@ -75,7 +75,28 @@ public class SetupCreationTests {
             {"", DEFAULT_SETUP_STRING},
             {"  ", DEFAULT_SETUP_STRING},
             {"notafilepath", "Invalid configuration file path: \"notafilepath\""},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete.cfg", DEFAULT_SETUP_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_http.cfg", DEFAULT_SETUP_STRING
+                + "aggregation.channel = /devoptaggregation;"
+                + "aggregation.protocol = HTTP;"
+                + "aggregation.url = http://127.0.0.2;"
+                + "aggregation.port = 80;"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete1.cfg",
+                "No value defined for configuration property \"aggregation.protocol\": "
+                        + "incomplete definition is not supported - define all or none of those properties"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete2.cfg",
+                "No value defined for configuration property \"aggregation.url\": "
+                        + "incomplete definition is not supported - define all or none of those properties"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete3.cfg",
+                "No value defined for configuration property \"aggregation.port\": "
+                        + "incomplete definition is not supported - define all or none of those properties"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete4.cfg",
+                "No value defined for configuration property \"aggregation.channel\": "
+                        + "incomplete definition is not supported - define all or none of those properties"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_mqtt.cfg", DEFAULT_SETUP_STRING
+                + "aggregation.channel = devoptaggregation;"
+                + "aggregation.protocol = MQTT;"
+                + "aggregation.url = tcp://broker.hivemq.com;"
+                + "aggregation.port = 1883;"},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_valid.cfg", DEFAULT_SETUP_STRING
                 + "aggregation.channel = aggregation;"
                 + "aggregation.protocol = MQTT;"
@@ -90,12 +111,26 @@ public class SetupCreationTests {
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_valid.cfg", DEFAULT_SETUP_NO_MODEL_STRING 
                 + "model.directory = ./testdata/model_db;"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "registrationProperties_incomplete.cfg",
+                "Value \"tcp://broker.hivemq.com\" not supported for configuration property \"registration.url\" "
+                        + "while protocol \"HTTP\" is defined: Please correct this key's value or the protocol in "
+                        + "the given configuration file"},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "registrationProperties_mqtt.cfg", DEFAULT_SETUP_LOGGING_STRING
-                    + "registration.protocol = MQTT;"
-                    + "registration.port = 1883;"
-                    + "registration.url = tcp://broker.hivemq.com;"
-                    + "registration.channel = devoptregistration;"
-                    + DEFAULT_SETUP_MODEL_STRING},
+                 + "registration.protocol = MQTT;"
+                 + "registration.port = 1883;"
+                 + "registration.url = tcp://broker.hivemq.com;"
+                 + "registration.channel = devoptregistration;"
+                 + DEFAULT_SETUP_MODEL_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "scenarios.cfg", DEFAULT_SETUP_LOGGING_STRING
+                 + "registration.protocol = MQTT;"
+                 + "registration.port = 1883;"
+                 + "registration.url = tcp://broker.hivemq.com;"
+                 + "registration.channel = devoptregistration;"
+                 + DEFAULT_SETUP_MODEL_STRING
+                 + "aggregation.channel = devoptaggregation;"
+                 + "aggregation.protocol = MQTT;"
+                 + "aggregation.url = tcp://broker.hivemq.com;"
+                 + "aggregation.port = 1883;"},
             /*
              * TODO: incomplete configuration properties, wrong combinations, values the fail validation, more than a
              *       single args element

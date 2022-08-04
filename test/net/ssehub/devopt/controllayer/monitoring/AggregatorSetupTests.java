@@ -62,7 +62,6 @@ public class AggregatorSetupTests extends AbstractMonitoringDataReceiverTest {
      */
     private static final Object[][] TEST_DATA = {
             {null, "Setup is \"null\"", true},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete.cfg", null, false},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_valid.cfg", null, false},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "description.cfg", null, false},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "minimal.cfg", null, false},

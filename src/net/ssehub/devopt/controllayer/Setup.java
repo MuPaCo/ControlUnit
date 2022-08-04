@@ -18,6 +18,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
+import java.net.http.HttpRequest;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -142,7 +146,7 @@ public class Setup {
     /**
      * The key identifying the configuration property for defining the URL to use for establishing the network
      * connection for sending aggregated runtime data. The associated value to this key in this setup is either a valid
-     * user-defined protocol or <code>null</code>, if aggregated data must not be send.
+     * user-defined URL or <code>null</code>, if aggregated data must not be send.
      */
     public static final String KEY_AGGREGATION_URL = KEY_AGGREGATION_PREFIX + "url";
     
@@ -156,7 +160,7 @@ public class Setup {
     /**
      * The key identifying the configuration property for defining the channel name to use for establishing the network
      * connection for sending aggregated runtime data. The associated value to this key in this setup is either a valid
-     * user-defined protocol or <code>null</code>, if aggregated data must not be send.
+     * user-defined channel or <code>null</code>, if aggregated data must not be send.
      */
     public static final String KEY_AGGREGATION_CHANNEL = KEY_AGGREGATION_PREFIX + "channel";
     
@@ -195,16 +199,9 @@ public class Setup {
     private static final String REGISTRATION_DEFAULT_PORT = "80";
     
     /**
-     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_CHANNEL}, if the value
-     * of the configuration property identified by {@link #KEY_REGISTRATION_PROTOCOL} is <code>MQTT</code>.
+     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_CHANNEL}.
      */
-    private static final String REGISTRATION_DEFAULT_MQTT_CHANNEL = "registration";
-    
-    /**
-     * The default value for the configuration property identified by {@link #KEY_REGISTRATION_CHANNEL} if the value
-     * of the configuration property identified by {@link #KEY_REGISTRATION_PROTOCOL} is <code>HTTP</code>.
-     */
-    private static final String REGISTRATION_DEFAULT_HTTP_CHANNEL = "/" + REGISTRATION_DEFAULT_MQTT_CHANNEL;
+    private static final String REGISTRATION_DEFAULT_CHANNEL = "/registration";
     
     /**
      * The default value for the configuration property identified by {@link #KEY_MODEL_DIRECTORY}.
@@ -335,8 +332,10 @@ public class Setup {
     }
     
     /**
-     * Calls the individual validation methods for checking whether the property values are valid. 
-     * @throws SetupException if a property value is invalid
+     * Calls the individual validation methods for checking whether the property values are valid.
+     * 
+     * @throws SetupException if a property value is invalid and cannot be corrected automatically, e.g., by using a
+     *         default value
      */
     private void validateProperties() throws SetupException {
         validateLoggingProperties();
@@ -376,67 +375,261 @@ public class Setup {
     
     /**
      * Validates the {@link #registrationProperties} and their values.
+     * 
+     * @throws SetupException if a registration property value is invalid and cannot be corrected automatically, e.g.,
+     *         by using a default value
      */
-    private void validateRegistrationProperties() {
-        // Validate registration protocol
-        String key = KEY_REGISTRATION_PROTOCOL;
-        String value = getRegistrationConfiguration(key);
-        String defaultValue = REGISTRATION_DEFAULT_PROTOCOL;
-        if (!handleUndefinedProperty(key, value, registrationProperties, defaultValue)) {
-            // Check if specified registration protocol is supported
-            if (!value.equalsIgnoreCase("MQTT") && !value.equalsIgnoreCase("HTTP")) {
-                postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \"" + key
-                        + "\": using default \"" + defaultValue + "\"");
-                resetProperty(registrationProperties, key, defaultValue);
+    private void validateRegistrationProperties() throws SetupException {
+        // Order matters: URL and channel validation require protocol information; hence, validate protocol first
+        validateProtocol(KEY_REGISTRATION_PROTOCOL, registrationProperties, REGISTRATION_DEFAULT_PROTOCOL);
+        String protocol = getRegistrationConfiguration(KEY_REGISTRATION_PROTOCOL);
+        validateUrl(KEY_REGISTRATION_URL, registrationProperties, REGISTRATION_DEFAULT_URL, protocol, true);
+        validatePort(KEY_REGISTRATION_PORT, registrationProperties, REGISTRATION_DEFAULT_PORT);
+        validateChannel(KEY_REGISTRATION_CHANNEL, registrationProperties, REGISTRATION_DEFAULT_CHANNEL, protocol);
+    }
+    
+    /**
+     * Validates the {@link #aggregationProperties} and their values.
+     * 
+     * @throws SetupException if the definition of aggregation properties is incomplete (only some properties defined),
+     *         or an aggregation property value is invalid
+     */
+    private void validateAggregationProperties() throws SetupException {
+        if (isBlank(aggregationProperties)) {
+            // Although being blank, delete all properties completely to avoid inconsistencies on usage
+            aggregationProperties.clear();
+        } else {
+            // Check if all properties are defined; being not blank does not mean that definitions are complete
+            String[] aggregationPropertiesKeys = {KEY_AGGREGATION_PROTOCOL, KEY_AGGREGATION_URL, KEY_AGGREGATION_PORT,
+                KEY_AGGREGATION_CHANNEL};
+            String aggregationPropertiesKey;
+            String aggregationPropertiesValue;
+            int aggregationPropertiesKeysCounter = 0;
+            while (aggregationPropertiesKeysCounter < aggregationPropertiesKeys.length) {
+                aggregationPropertiesKey = aggregationPropertiesKeys[aggregationPropertiesKeysCounter];
+                aggregationPropertiesValue = getAggregationConfiguration(aggregationPropertiesKey);
+                if (aggregationPropertiesValue == null || aggregationPropertiesValue.isBlank()) {
+                    throw new SetupException("No value defined for configuration property \"" + aggregationPropertiesKey
+                            + "\": incomplete definition is not supported - define all or none of those properties");
+                }
+                aggregationPropertiesKeysCounter++;
+            }
+            // Check if each property value is valid
+            // Order matters: URL and channel validation require protocol information; hence, validate protocol first
+            String protocol = getAggregationConfiguration(KEY_AGGREGATION_PROTOCOL);
+            validateProtocol(KEY_AGGREGATION_PROTOCOL, protocol);
+            validateUrl(KEY_AGGREGATION_URL, getAggregationConfiguration(KEY_AGGREGATION_URL), protocol, false);
+            validatePort(KEY_AGGREGATION_PORT, getAggregationConfiguration(KEY_AGGREGATION_PORT));
+            validateChannel(KEY_AGGREGATION_CHANNEL, getAggregationConfiguration(KEY_AGGREGATION_CHANNEL),
+                    aggregationProperties, protocol);
+        }
+    }
+    
+    /**
+     * Validates the network protocol definition identified by the given key in the given set of properties. If this
+     * value associated with that key is not defined (<code>null</code> or <i>blank</i>),  this method adds the given
+     * default value for the given key to the given set of properties.
+     * 
+     * @param key the key identifying the network protocol definition in the given properties; must not be
+     *        <code>null</code>
+     * @param properties the properties containing the given key and, hence, network protocol definition; must not be
+     *        <code>null</code>
+     * @param defaultValue the network protocol to associate with the given key in the given properties, if it is not
+     *        defined yet; must not be <code>null</code>
+     * @throws SetupException if the defined network protocol is invalid
+     */
+    private void validateProtocol(String key, Properties properties, String defaultValue) throws SetupException {
+        String value = getConfiguration(properties, key);
+        if (!handleUndefinedProperty(key, value, properties, defaultValue)) {
+            validateProtocol(key, value);
+        }
+    }
+    
+    /**
+     * Validates the given network protocol definition (value) identified by the given key.
+     * 
+     * @param key the key identifying the given network protocol definition; must not be <code>null</code>
+     * @param value the network protocol definition to validate; must not be <code>null</code>
+     * @throws SetupException if the defined network protocol is invalid
+     */
+    private void validateProtocol(String key, String value) throws SetupException {
+        if (!value.equalsIgnoreCase("MQTT") && !value.equalsIgnoreCase("HTTP")) {
+            throw new SetupException("Value \"" + value + "\" not supported for configuration property \"" + key
+                    + "\": Please correct this key's value in the given configuration file");
+        }
+    }
+    
+    /**
+     * Validates the URL definition identified by the given key in the given set of properties. If this value associated
+     * with that key is not defined (<code>null</code> or <i>blank</i>), this method adds the given default value for
+     * the given key to the given set of properties.<br>
+     * <br>
+     * This validation considers the purpose of the URL. Hence, the given protocol defines for which network protocol
+     * the URL will be used, while the additional switch differentiates between HTTP server and HTTP client usage.
+     * 
+     * @param key the key identifying the URL definition in the given properties; must not be <code>null</code>
+     * @param properties the properties containing the given key and, hence, URL definition; must not be
+     *        <code>null</code>
+     * @param defaultValue the URL to associate with the given key in the given properties, if it is not defined yet;
+     *        must not be <code>null</code>
+     * @param protocol the network protocol used in combination with the URL to validate; must not be <code>null</code> 
+     * @param forHttpServer the definition of whether the URL to validate will be used for the creation of a HTTP server
+     *        (<code>true</code>) or a HTTP client (<code>false</code>); for a network protocol other than
+     *        <code>HTTP</code>, this value has no effect
+     * @throws SetupException if the defined URL is invalid for the desired purpose (protocol, server or client usage)
+     */
+    private void validateUrl(String key, Properties properties, String defaultValue, String protocol,
+            boolean forHttpServer) throws SetupException {
+        String value = getConfiguration(properties, key);
+        if (!handleUndefinedProperty(key, value, properties, defaultValue)) {
+            validateUrl(key, value, protocol, forHttpServer);
+        }
+    }
+    
+    /**
+     * Validates the given URL definition (value) identified by the given key.<br>
+     * <br>
+     * This validation considers the purpose of the URL. Hence, the given protocol defines for which network protocol
+     * the URL will be used, while the additional switch differentiates between HTTP server and HTTP client usage.
+     * 
+     * @param key the key identifying the given URL definition; must not be <code>null</code>
+     * @param value the URL definition to validate; must not be <code>null</code>
+     * @param protocol the network protocol used in combination with the URL to validate; must not be <code>null</code> 
+     * @param forHttpServer the definition of whether the URL to validate will be used for the creation of a HTTP server
+     *        (<code>true</code>) or a HTTP client (<code>false</code>); for a network protocol other than
+     *        <code>HTTP</code>, this value has no effect
+     * @throws SetupException if the defined URL is invalid for the desired purpose (protocol, server or client usage)
+     */
+    private void validateUrl(String key, String value, String protocol, boolean forHttpServer) throws SetupException {
+        if (protocol.equalsIgnoreCase("HTTP")) {
+            if (forHttpServer) {                
+                // Check if value maps to an IP address required for HTTP server creation
+                try {
+                    InetAddress.getByName(value);
+                } catch (UnknownHostException | SecurityException e) {
+                    throw new SetupException("Value \"" + value + "\" not supported for configuration property \"" + key
+                            + "\" while protocol \"" + protocol + "\" is defined: Please correct this key's value "
+                            + "or the protocol in the given configuration file", e);
+                }
+            } else {
+                // Check if value maps to a correct URI required for creating a client's HTTP request
+                try {                    
+                    HttpRequest.newBuilder().uri(URI.create(value));
+                } catch (IllegalArgumentException e) {
+                    throw new SetupException("Value \"" + value + "\" not supported for configuration property \"" + key
+                            + "\" while protocol \"" + protocol + "\" is defined: Please correct this key's value "
+                            + "or the protocol in the given configuration file", e);
+                }
+            }
+        } else if (protocol.equalsIgnoreCase("MQTT")) {
+            // Check if value starts correctly for identifying a MQTT broker
+            if (!value.startsWith("tcp://")) {
+                // TODO more checks regarding the remaining part of the value
+                throw new SetupException("Value \"" + value + "\" not supported for configuration property \"" + key
+                        + "\" while protocol \"" + protocol + "\" is defined: Please correct this key's value "
+                                + "or the protocol in the given configuration file");
             }
         }
-        // Validate registration URL
-        key = KEY_REGISTRATION_URL;
-        value = getRegistrationConfiguration(key);
-        defaultValue = REGISTRATION_DEFAULT_URL;
-        if (!handleUndefinedProperty(key, value, registrationProperties, defaultValue)) {
-            // Check if specified registration URL is supported
-            // TODO use regex?
+    }
+    
+    /**
+     * Validates the port number definition identified by the given key in the given set of properties. If this value
+     * associated with that key is not defined (<code>null</code> or <i>blank</i>),  this method adds the given default
+     * value for the given key to the given set of properties.
+     * 
+     * @param key the key identifying the port number definition in the given properties; must not be <code>null</code>
+     * @param properties the properties containing the given key and, hence, port number definition; must not be
+     *        <code>null</code>
+     * @param defaultValue the port number as string to associate with the given key in the given properties, if it is
+     *        not defined yet; must not be <code>null</code>
+     * @throws SetupException if the defined port number is invalid
+     */
+    private void validatePort(String key, Properties properties, String defaultValue) throws SetupException {        
+        String value = getConfiguration(properties, key);
+        if (!handleUndefinedProperty(key, value, properties, defaultValue)) {
+            validatePort(key, value);
         }
-        // Validate registration port
-        key = KEY_REGISTRATION_PORT;
-        value = getRegistrationConfiguration(key);
-        defaultValue = REGISTRATION_DEFAULT_PORT;
-        if (!handleUndefinedProperty(key, value, registrationProperties, defaultValue)) {
-            // Check if specified registration port is supported
-            int intValue = -1;
-            try {
-                intValue = Integer.parseInt(value);
-            } catch (NumberFormatException e) {
-                /*
-                 * Nothing to do here as in case of this exception, the next check will fail anyway due to the default
-                 * intValue of -1.
-                 */
-            }
-            if (intValue < 0 || intValue > 65535) {
-                postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \"" + key
-                        + "\": using default \"" + defaultValue + "\"");
-                resetProperty(registrationProperties, key, defaultValue);
-            }
+    }
+    
+    /**
+     * Validates the given port number definition (value) identified by the given key.
+     * 
+     * @param key the key identifying the given port number definition; must not be <code>null</code>
+     * @param value the port number definition as string to validate; must not be <code>null</code>
+     * @throws SetupException if the defined port number is invalid
+     */
+    private void validatePort(String key, String value) throws SetupException {
+        // Check if specified port is supported
+        int intValue = -1;
+        try {
+            intValue = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            /*
+             * Nothing to do here as in case of this exception, the next check will fail anyway due to the default
+             * intValue of -1.
+             */
         }
-        // Validate registration channel
-        key = KEY_REGISTRATION_CHANNEL;
-        value = getRegistrationConfiguration(key);
-        // Default channel depends on selected protocol
-        String registrationProtocol = getRegistrationConfiguration(KEY_REGISTRATION_PROTOCOL);
-        if (registrationProtocol.equalsIgnoreCase("HTTP")) {
-            defaultValue = REGISTRATION_DEFAULT_HTTP_CHANNEL;
-        } else if (registrationProtocol.equalsIgnoreCase("MQTT")) {
-            defaultValue = REGISTRATION_DEFAULT_MQTT_CHANNEL;
+        if (intValue < 0 || intValue > 65535) {
+            throw new SetupException("Value \"" + value + "\" not supported for configuration property \"" + key
+                    + "\": Please correct this key's value in the given configuration file");
         }
-        if (!handleUndefinedProperty(key, value, registrationProperties, defaultValue)) {
-            // Check if specified registration channel is supported
-            if (registrationProtocol.equalsIgnoreCase("HTTP") && value.charAt(0) != '/') {
-                postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \"" + key
-                        + "\": using default \"" + defaultValue + "\"");
-                resetProperty(registrationProperties, key, defaultValue);
+    }
+    
+    /**
+     * Validates the channel (MQTT topic or HTTP server context) definition identified by the given key in the given set
+     * of properties. If this value associated with that key is not defined (<code>null</code> or <i>blank</i>),  this
+     * method adds the given default value for the given key to the given set of properties.<br>
+     * <br>
+     * This validation considers the purpose of the channel. Hence, the given protocol defines for which network
+     * protocol the channel will be used.
+     * 
+     * @param key the key identifying the channel definition in the given properties; must not be <code>null</code>
+     * @param properties the properties containing the given key and, hence, channel definition; must not be
+     *        <code>null</code>
+     * @param defaultValue the channel to associate with the given key in the given properties, if it is not defined
+     *        yet; must not be <code>null</code>
+     * @param protocol the network protocol used in combination with the channel to validate; must not be
+     *        <code>null</code>
+     * @throws SetupException if the defined channel is invalid for the desired purpose (protocol)
+     */
+    private void validateChannel(String key, Properties properties, String defaultValue, String protocol) {
+        String value = getConfiguration(properties, key);
+        if (!handleUndefinedProperty(key, value, properties, defaultValue)) {
+            validateChannel(key, value, properties, protocol);
+        }
+    }
+    
+    /**
+     * Validates the given channel (MQTT topic or HTTP server context) definition (value) identified by the given
+     * key <b>and corrects it</b> with respect to the given protocol. If the protocol is <code>HTTP</code> and the
+     * channel does not start with "/", this leading character is added, while it will be removed, if present and the
+     * protocol is <code>MQTT</code>.
+     * 
+     * @param key the key identifying the given channel definition; must not be <code>null</code>
+     * @param value the channel definition to validate; must not be <code>null</code>
+     * @param properties the properties containing the given key and value for value correction as described above; must
+     *        not be <code>null</code>
+     * @param protocol the network protocol used in combination with the channel to validate; must not be
+     *        <code>null</code>
+     * @throws SetupException if the defined channel is invalid for the desired purpose (protocol)
+     */
+    private void validateChannel(String key, String value, Properties properties, String protocol) {
+        // TODO use regex for more elaborated check
+        if (protocol.equalsIgnoreCase("HTTP")) {
+            // Channel will be HTTP server context, which requires a leading '/'
+            if (value.charAt(0) != '/') {
+                postponedWarnings.add("Value \"" + value + "\" for configuration property \"" + key
+                        + "\" lacks leading \"/\": using corrected value \"/" + value + "\"");
+                resetProperty(properties, key, "/" + value);
             }
-            // TODO use regex or URI for more elaborated check
+        } else if (protocol.equalsIgnoreCase("MQTT")) {
+            // Channel will be MQTT topic, which must no start with '/'
+            if (value.charAt(0) == '/') {
+                value = value.substring(1);
+                postponedWarnings.add("Value \"/" + value + "\" for configuration property \"" + key
+                        + "\" start with \"/\": using corrected value \"/" + value + "\"");
+                resetProperty(properties, key, value);
+            }
         }
     }
     
@@ -511,77 +704,6 @@ public class Setup {
         } else {
             if (!file.isDirectory()) {
                 throw new SetupException("Path \"" + file.getAbsolutePath() + "\" does not denote a directory");
-            }
-        }
-    }
-    
-    /**
-     * Validates the {@link #aggregationProperties} and their values.
-     */
-    private void validateAggregationProperties() {
-        if (isBlank(aggregationProperties)) {
-            // Although being blank, delete all properties completely to avoid inconsistencies on usage
-            aggregationProperties.clear();
-        } else {
-            String[] aggregationPropertiesKeys = {KEY_AGGREGATION_PROTOCOL, KEY_AGGREGATION_URL, KEY_AGGREGATION_PORT,
-                KEY_AGGREGATION_CHANNEL};
-            boolean aggregationPropertiesValid = true;
-            int aggregationPropertiesCounter = 0;
-            String key;
-            String value;
-            while (aggregationPropertiesValid && aggregationPropertiesCounter < aggregationPropertiesKeys.length) {
-                key = aggregationPropertiesKeys[aggregationPropertiesCounter];
-                value = getAggregationConfiguration(key);
-                if (value == null || value.isBlank()) {
-                    /*
-                     * Check 'isBlank(aggregationProperties)' above must have returned false, hence, there is at least
-                     * one property with an actual value. Finding 'null' or 'blank' now means properties are incomplete.
-                     */
-                    postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
-                            + key + "\": incomplete aggregation configuration yields no distribution");
-                    aggregationPropertiesValid = false;
-                } else {                    
-                    switch(key) {
-                    case KEY_AGGREGATION_PROTOCOL:
-                        // Validate protocol for sending aggregated data
-                        if (!value.equalsIgnoreCase("MQTT") && !value.equalsIgnoreCase("HTTP")) {
-                            postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
-                                    + key + "\": no distribution of aggregation data");
-                            aggregationPropertiesValid = false;
-                        }
-                        break;
-                    case KEY_AGGREGATION_URL:
-                        // Validate URL for sending aggregated data
-                        // TODO Check if specified aggregation URL is supported; use regex?
-                        break;
-                    case KEY_AGGREGATION_PORT:
-                        // Validate port for sending aggregated data
-                        int intValue = -1;
-                        try {
-                            intValue = Integer.parseInt(value);
-                        } catch (NumberFormatException e) {
-                            // In case of this exception, next check will fail anyway due to default 'intValue' of '-1'
-                        }
-                        if (intValue < 0 || intValue > 65535) {
-                            postponedWarnings.add("Value \"" + value + "\" not supported for configuration property \""
-                                    + key + "\": no distribution of aggregation data");
-                            aggregationPropertiesValid = false;
-                        }
-                        break;
-                    case KEY_AGGREGATION_CHANNEL:
-                        // Validate channel for sending aggregated data
-                        // TODO use regex or URI for checks
-                        break;
-                    default:
-                        postponedWarnings.add("Ignoring unknown aggregation configuration property \"" + key + "\"");
-                        break;
-                    }
-                }
-                aggregationPropertiesCounter++;
-            }
-            // In case of invalid properties, delete them completely to avoid inconsistencies on usage
-            if (!aggregationPropertiesValid) {
-                aggregationProperties.clear();
             }
         }
     }
