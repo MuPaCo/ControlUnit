@@ -258,7 +258,7 @@ public class Logger {
     /**
      * Logs the given exception. Logging exceptions produces two types of log entries:
      * <ul>
-     * <li>A simple (single-line) entry describing the main cause of the given exception; this entry is written to all
+     * <li>A simple (single-line) entry consisting of the message of the given exception; this entry is written to all
      *     output streams as an error</li>
      * <li>A detailed (multi-line) entry describing the full stack trace of the given exception; this entry is written
      *     to all output streams, which support {@link LogLevel#DEBUG} only, as debug information</li>
@@ -272,57 +272,28 @@ public class Logger {
      * @param exception the exception to log
      */
     public synchronized void logException(String id, Exception exception) {
-        // Timestamp must be the same for both types of log entries
-        String timestamp = createTimestamp();
-        // Simply log entry for all output streams
-        String simpleLogEntry = createSimpleLogEntry(exception);
-        log(MessageType.ERROR, timestamp, id, simpleLogEntry);
-        // Additional detailed log entry for debug output streams
-        log(MessageType.DEBUG, timestamp, id, createDetailedLogEntry(simpleLogEntry, exception));
-    }
-    
-    /**
-     * Creates a simple (single-line) log entry describing the main cause of the given throwable. This single line
-     * consists of the string-representation of the given throwable and the first element of its stack trace, which
-     * identifies the last method invocation.
-     * 
-     * @param throwable the throwable for which a simple log entry should be created
-     * @return a simple (single-line) log entry describing the given throwable; may be <code>null</code>, if the given
-     *         throwable is <code>null</code>
-     */
-    private String createSimpleLogEntry(Throwable throwable) {
-        String throwableLogEntry = null;
-        if (throwable != null) {            
-            StringBuilder throwableLogEntryBuilder = new StringBuilder();
-            throwableLogEntryBuilder.append(throwable.toString());
-            StackTraceElement[] throwableStackTraceElements = throwable.getStackTrace();
-            if (throwableStackTraceElements != null && throwableStackTraceElements.length > 0) {
-                throwableLogEntryBuilder.append(" at ");
-                throwableLogEntryBuilder.append(throwableStackTraceElements[0].toString());
-            }
-            throwableLogEntry = throwableLogEntryBuilder.toString(); 
+        String timestamp = createTimestamp(); // Timestamp must be the same for both types of log entries
+        String simpleLogEntry = null;
+        if (exception != null) {
+            simpleLogEntry = exception.getMessage();
         }
-        return throwableLogEntry;
+        log(MessageType.ERROR, timestamp, id, simpleLogEntry);
+        log(MessageType.DEBUG, timestamp, id, createDetailedLogEntry(exception));
     }
     
     /**
-     * Creates a detailed (multi-line) log entry describing the given throwable. This detailed entry starts with the
-     * given parent message, which is typically the simple log entry of the given throwable created by 
-     * {@link #createSimpleLogEntry(Throwable)}. The additional lines of the detailed entry contain the full stack trace
-     * of the given throwable and its cause(s).
+     * Creates a detailed (multi-line) log entry describing the given throwable. It contains the full stack trace of the
+     * given throwable and its cause(s).
      * 
-     * @param parentMessage the simple log entry of the given throwable
      * @param throwable the throwable for which a detailed log entry should be created
      * @return a detailed (multi-line) log entry describing the given throwable including its stack trace; may be
      *         <code>null</code>, if the given throwable is <code>null</code>
      */
-    private String[] createDetailedLogEntry(String parentMessage, Throwable throwable) {
+    private String[] createDetailedLogEntry(Throwable throwable) {
         String[] throwableLogEntry = null;
         if (throwable != null) {            
             List<String> throwableLogEntryList = new ArrayList<String>();
-            if (parentMessage != null) {
-                throwableLogEntryList.add(parentMessage);
-            }
+            throwableLogEntryList.add(throwable.toString());
             throwableLogEntryList.addAll(createStackTraceLogEntry(throwable));
             throwableLogEntry = new String[throwableLogEntryList.size()];
             throwableLogEntry = throwableLogEntryList.toArray(throwableLogEntry);

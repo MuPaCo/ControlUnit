@@ -44,6 +44,7 @@ public class ModelManagerUsageTests extends AbstractModelManagerTests {
      * </ul>
      */
     private static final Object[][] TEST_DATA = {
+            {"PureText.ivml", 0},
             {"ProjectMissingClosingBracket.ivml", 0},
             {"InvalidDevOptProject.ivml", 0},
             {"EmptyProject.ivml", 0},

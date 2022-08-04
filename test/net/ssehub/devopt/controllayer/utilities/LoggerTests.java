@@ -962,8 +962,8 @@ public class LoggerTests {
         String expectedStandardMessageType = MESSAGE_TYPE_ERROR;
         String expectedDebugMessageType = MESSAGE_TYPE_DEBUG;
         Exception expectedException = new Exception(TEST_LOG_ENTRY);
-        String expectedStandardLogLine = "java.lang.Exception: Test-Log-Entry at "
-                + "net.ssehub.devopt.controllayer.utilities.LoggerTests.testLogExceptionAllValid(LoggerTests.java:964)";
+        String expectedStandardLogLine = TEST_LOG_ENTRY;
+        String expectedDebugLogLine = expectedException.toString();
         
         logger.logException(ID, expectedException);
         
@@ -996,7 +996,7 @@ public class LoggerTests {
         assertEquals(expectedDebugMessageType, getMessageType(actualDebugOutputParts[1]),
                 streamName + " contains wrong message type");
         assertEquals(expectedId, getId(actualDebugOutputParts[1]), streamName + " contains wrong caller id");
-        assertEquals(expectedStandardLogLine, getLogLine(actualDebugOutputParts[1]),
+        assertEquals(expectedDebugLogLine, getLogLine(actualDebugOutputParts[1]),
                 streamName + " contains wrong log line");
         // No further check of second part as the stack trace is system/runtime dependent
     }
@@ -1018,9 +1018,8 @@ public class LoggerTests {
         String expectedDebugMessageType = MESSAGE_TYPE_DEBUG;
         Exception causeException = new Exception(TEST_LOG_ENTRY);
         Exception expectedException = new Exception(TEST_LOG_ENTRY, causeException);
-        String expectedStandardLogLine = "java.lang.Exception: Test-Log-Entry at "
-                + "net.ssehub.devopt.controllayer.utilities.LoggerTests"
-                + ".testLogExceptionAllValidMultiCause(LoggerTests.java:1020)";
+        String expectedStandardLogLine = TEST_LOG_ENTRY;
+        String expectedDebugLogLine = expectedException.toString();
         
         logger.logException(ID, expectedException);
         
@@ -1053,7 +1052,7 @@ public class LoggerTests {
         assertEquals(expectedDebugMessageType, getMessageType(actualDebugOutputParts[1]),
                 streamName + " contains wrong message type");
         assertEquals(expectedId, getId(actualDebugOutputParts[1]), streamName + " contains wrong caller id");
-        assertEquals(expectedStandardLogLine, getLogLine(actualDebugOutputParts[1]),
+        assertEquals(expectedDebugLogLine, getLogLine(actualDebugOutputParts[1]),
                 streamName + " contains wrong log line");
         assertTrue(containsCause(actualDebugOutputParts, causeException.getClass().getName(),
                 causeException.getMessage()), streamName + "must contain exception cause (nested throwable)");
