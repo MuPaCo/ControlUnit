@@ -21,6 +21,8 @@ import net.ssehub.devopt.controllayer.model.ModelManager;
 import net.ssehub.devopt.controllayer.monitoring.Aggregator;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiver;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringException;
+import net.ssehub.devopt.controllayer.update.SoftwareUpdater;
+import net.ssehub.devopt.controllayer.update.UpdateException;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilities;
 import net.ssehub.devopt.controllayer.utilities.EASyUtilitiesException;
 import net.ssehub.devopt.controllayer.utilities.Logger;
@@ -92,6 +94,19 @@ public class Controller {
             System.exit(1);
         }
         /*
+         * Start the software updater, which also creates the software update information receiver. It listens for
+         * software update information on its own connection to propagate this information to all known entities
+         * provided by the model manager, which will be started next. 
+         */
+        logger.logInfo(ID, "Creating software updater");
+        try {
+            SoftwareUpdater.setUp(setup);
+            SoftwareUpdater.getInstance().start();
+        } catch (UpdateException e) {
+            logger.logException(ID, e);
+            System.exit(1);
+        }
+        /*
          * Start the model management, which also creates the model receiver and any connections to the EASy-Producer
          * components started above.
          */
@@ -121,10 +136,12 @@ public class Controller {
             MonitoringDataReceiver.getInstance().stop();
             logger.logInfo(ID, "Deleting aggregator");
             Aggregator.tearDown();
+            logger.logInfo(ID, "Stopping software updater and its software update information receiver");
+            SoftwareUpdater.getInstance().stop();
             logger.logInfo(ID, "Stopping EASy-Producer components");
             EASyUtilities.INSTANCE.stopEASyComponents();
             controllerStopped = true;
-        } catch (ModelException | MonitoringException | EASyUtilitiesException e) {
+        } catch (ModelException | MonitoringException | UpdateException | EASyUtilitiesException e) {
             logger.logException(ID, e);
         }
         return controllerStopped;
