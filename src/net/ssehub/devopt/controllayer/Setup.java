@@ -164,6 +164,39 @@ public class Setup {
      */
     public static final String KEY_AGGREGATION_CHANNEL = KEY_AGGREGATION_PREFIX + "channel";
     
+    /**
+     * The prefix of all keys identifying a configuration property related to update capabilities. 
+     */
+    private static final String KEY_UPDATE_PREFIX = "update.";
+    
+    /**
+     * The key identifying the configuration property for defining the type of protocol to use for listening for
+     * software updates of local elements supervised by the controller. The associated value to this key in this setup
+     * is either a valid user-defined protocol or the {@link #UPDATE_DEFAULT_PROTOCOL}.
+     */
+    public static final String KEY_UPDATE_PROTOCOL = KEY_UPDATE_PREFIX + "protocol";
+    
+    /**
+     * The key identifying the configuration property for defining the URL to use for establishing the network
+     * connection for software updates of local elements. The associated value to this key in this setup is either a
+     * valid user-defined URL or the {@link #UPDATE_DEFAULT_URL}.
+     */
+    public static final String KEY_UPDATE_URL = KEY_UPDATE_PREFIX + "url";
+    
+    /**
+     * The key identifying the configuration property for defining the port number to use for establishing the network
+     * connection for software updates of local elements. The associated value to this key in this setup is either a
+     * valid user-defined port or the {@link #UPDATE_DEFAULT_PORT}.
+     */
+    public static final String KEY_UPDATE_PORT = KEY_UPDATE_PREFIX + "port";
+    
+    /**
+     * The key identifying the configuration property for defining the channel name to use for establishing the network
+     * connection for software updates of local elements. The associated value to this key in this setup is either a
+     * valid user-defined channel or the {@link #UPDATE_DEFAULT_CHANNEL}.
+     */
+    public static final String KEY_UPDATE_CHANNEL = KEY_UPDATE_PREFIX + "channel";
+    
     // checkstyle: resume declaration order check (public before private; following order eases filtering properties)
     // [End]-------------------------------------------------------------------------------------------------------[End]
     // [End]                                   Constant Property Keys Definition                                   [End]
@@ -208,6 +241,26 @@ public class Setup {
      */
     private static final String MODEL_DEFAULT_DIRECTORY = "./models";
     
+    /**
+     * The default value for the configuration property identified by {@link #KEY_UPDATE_PROTOCOL}.
+     */
+    private static final String UPDATE_DEFAULT_PROTOCOL = "HTTP";
+    
+    /**
+     * The default value for the configuration property identified by {@link #KEY_UPDATE_URL}.
+     */
+    private static final String UPDATE_DEFAULT_URL = "127.0.0.2";
+    
+    /**
+     * The default value for the configuration property identified by {@link #KEY_UPDATE_PORT}.
+     */
+    private static final String UPDATE_DEFAULT_PORT = "80";
+    
+    /**
+     * The default value for the configuration property identified by {@link #KEY_UPDATE_CHANNEL}.
+     */
+    private static final String UPDATE_DEFAULT_CHANNEL = "/update";
+    
     // [End]-------------------------------------------------------------------------------------------------------[End]
     // [End]                                   Constant Default Values Definition                                  [End]
     // [End]-------------------------------------------------------------------------------------------------------[End]
@@ -216,6 +269,7 @@ public class Setup {
     private Properties registrationProperties;
     private Properties modelProperties;
     private Properties aggregationProperties;
+    private Properties updateProperties;
     
     private List<String> postponedWarnings;
     
@@ -233,6 +287,7 @@ public class Setup {
         registrationProperties = new Properties();
         modelProperties = new Properties();
         aggregationProperties = new Properties();
+        updateProperties = new Properties();
         postponedWarnings = new ArrayList<String>();
         File configurationFile = getConfigurationFile(configurationFilePath);
         if (configurationFile != null) {
@@ -324,6 +379,8 @@ public class Setup {
                 modelProperties.put(propertyKey, propertyValue);
             } else if (propertyKey.startsWith(KEY_AGGREGATION_PREFIX)) {
                 aggregationProperties.put(propertyKey, propertyValue);
+            } else if (propertyKey.startsWith(KEY_UPDATE_PREFIX)) {
+                updateProperties.put(propertyKey, propertyValue);
             } else {
                 // At this point, the property key has an unknown prefix; hence, it will be ignored
                 postponedWarnings.add("Ignoring unknown configuration property \"" + propertyKey + "\"");
@@ -342,6 +399,7 @@ public class Setup {
         validateRegistrationProperties();
         validateModelProperties();
         validateAggregationProperties();
+        validateUpdateProperties();
     }
     
     /**
@@ -423,6 +481,21 @@ public class Setup {
             validateChannel(KEY_AGGREGATION_CHANNEL, getAggregationConfiguration(KEY_AGGREGATION_CHANNEL),
                     aggregationProperties, protocol);
         }
+    }
+    
+    /**
+     * Validates the {@link #updateProperties} and their values.
+     * 
+     * @throws SetupException if a update property value is invalid and cannot be corrected automatically, e.g., by
+     *         using a default value
+     */
+    private void validateUpdateProperties() throws SetupException {
+        // Order matters: URL and channel validation require protocol information; hence, validate protocol first
+        validateProtocol(KEY_UPDATE_PROTOCOL, updateProperties, UPDATE_DEFAULT_PROTOCOL);
+        String protocol = getUpdateConfiguration(KEY_UPDATE_PROTOCOL);
+        validateUrl(KEY_UPDATE_URL, updateProperties, UPDATE_DEFAULT_URL, protocol, true);
+        validatePort(KEY_UPDATE_PORT, updateProperties, UPDATE_DEFAULT_PORT);
+        validateChannel(KEY_UPDATE_CHANNEL, updateProperties, UPDATE_DEFAULT_CHANNEL, protocol);
     }
     
     /**
@@ -846,6 +919,17 @@ public class Setup {
     }
     
     /**
+     * Returns the setup value for the update configuration property identified by the given key.
+     * 
+     * @param key the key of the update configuration property for which the loaded setup value should be returned
+     * @return the respective setup value or <code>null</code>, if the given key is not present in the update property
+     *         set
+     */
+    public String getUpdateConfiguration(String key) {
+        return getConfiguration(updateProperties, key);
+    }
+    
+    /**
      * Returns the setup value for the configuration property in the given property set identified by the given key.
      *
      * @param properties the property set to search in for the given key
@@ -885,14 +969,15 @@ public class Setup {
      */
     public String[] toLogLines() {
         int logLinesLength = loggingProperties.size() + registrationProperties.size() + modelProperties.size()
-                + aggregationProperties.size();
+                + aggregationProperties.size() + updateProperties.size();
         String[] logLines = new String[logLinesLength];
         
         int logLinesOffset = 0;
         logLinesOffset = addLogLines(logLines, logLinesOffset, loggingProperties);
         logLinesOffset = addLogLines(logLines, logLinesOffset, registrationProperties);
         logLinesOffset = addLogLines(logLines, logLinesOffset, modelProperties);
-        addLogLines(logLines, logLinesOffset, aggregationProperties);
+        logLinesOffset = addLogLines(logLines, logLinesOffset, aggregationProperties);
+        addLogLines(logLines, logLinesOffset, updateProperties);
 
         return logLines;
     }

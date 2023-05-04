@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Set;
 
 import net.ssehub.devopt.controllayer.Setup;
 import net.ssehub.devopt.controllayer.monitoring.MonitoringDataReceiver;
@@ -493,6 +494,15 @@ public class ModelManager implements Runnable, GenericCallback<String> {
     }
     
     /**
+     * Returns the {@link Set} of all keys in the current {@link #entityInformation} map.
+     * 
+     * @return a set view of the keys contained in this map
+     */
+    public synchronized Set<String> getEntityInfoKeys() {
+        return entityInformation.keySet();
+    }
+    
+    /**
      * Returns the {@link EntityInfo} instance for the given key.
      * 
      * @param key the key of the instance to return
@@ -525,6 +535,29 @@ public class ModelManager implements Runnable, GenericCallback<String> {
             }
         }
         return entityInfo;
+    }
+    
+    /**
+     * Deletes the model from the {@link #entityInformation} representing the entity defined by the given
+     * {@link EntityInfo}. This also deletes the associated model file and updates the {@link EASyUtilities}.
+     * 
+     * @param entityInfo the {@link EntityInfo} for which the model shall be deleted
+     * @return <code>true</code>, if the deletion was successful; <code>false</code> otherwise
+     */
+    public synchronized boolean deleteModel(EntityInfo entityInfo) {
+        boolean deletionSuccessful = false;
+        if (entityInfo != null) {
+            try {
+                fileUtilities.delete(new File(entityInfo.getSourceFilePath()));
+                if (easyUtilities.updateModelLocation(modelDirectory)
+                        && entityInformation.remove(entityInfo.getIdentifier()) != null) {
+                    deletionSuccessful = true;
+                }
+            } catch (FileUtilitiesException | EASyUtilitiesException e) {
+                logger.logException(ID, e);
+            }
+        }
+        return deletionSuccessful;
     }
 
     /**
