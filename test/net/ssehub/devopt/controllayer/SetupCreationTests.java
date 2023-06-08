@@ -49,12 +49,13 @@ public class SetupCreationTests {
     
     private static final String DEFAULT_SETUP_MODEL_STRING = "model.directory = ./models;";
     
-    private static final String DEFAULT_SETUP_NO_MODEL_STRING = DEFAULT_SETUP_LOGGING_STRING
-            + DEFAULT_SETUP_REGISTRATION_STRING;
+    private static final String DEFAULT_SETUP_UPDATE_STRING = "update.url = 127.0.0.2;"
+            + "update.protocol = HTTP;update.channel = /update;update.port = 80;";
     
     private static final String DEFAULT_SETUP_STRING = DEFAULT_SETUP_LOGGING_STRING
             + DEFAULT_SETUP_REGISTRATION_STRING
-            + DEFAULT_SETUP_MODEL_STRING;
+            + DEFAULT_SETUP_MODEL_STRING
+            + DEFAULT_SETUP_UPDATE_STRING;
 
     /**
      * The set of test value sets used to execute the tests in this class. Each subset is input to the constructor of
@@ -75,11 +76,14 @@ public class SetupCreationTests {
             {"", DEFAULT_SETUP_STRING},
             {"  ", DEFAULT_SETUP_STRING},
             {"notafilepath", "Invalid configuration file path: \"notafilepath\""},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_http.cfg", DEFAULT_SETUP_STRING
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_http.cfg", DEFAULT_SETUP_LOGGING_STRING
+                + DEFAULT_SETUP_REGISTRATION_STRING
+                + DEFAULT_SETUP_MODEL_STRING
                 + "aggregation.channel = /devoptaggregation;"
                 + "aggregation.protocol = HTTP;"
                 + "aggregation.url = http://127.0.0.2;"
-                + "aggregation.port = 80;"},
+                + "aggregation.port = 80;"
+                + DEFAULT_SETUP_UPDATE_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete1.cfg",
                 "No value defined for configuration property \"aggregation.protocol\": "
                         + "incomplete definition is not supported - define all or none of those properties"},
@@ -92,25 +96,34 @@ public class SetupCreationTests {
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_incomplete4.cfg",
                 "No value defined for configuration property \"aggregation.channel\": "
                         + "incomplete definition is not supported - define all or none of those properties"},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_mqtt.cfg", DEFAULT_SETUP_STRING
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_mqtt.cfg", DEFAULT_SETUP_LOGGING_STRING
+                + DEFAULT_SETUP_REGISTRATION_STRING
+                + DEFAULT_SETUP_MODEL_STRING
                 + "aggregation.channel = devoptaggregation;"
                 + "aggregation.protocol = MQTT;"
                 + "aggregation.url = tcp://broker.hivemq.com;"
-                + "aggregation.port = 1883;"},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_valid.cfg", DEFAULT_SETUP_STRING
+                + "aggregation.port = 1883;"
+                + DEFAULT_SETUP_UPDATE_STRING},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "aggregationProperties_valid.cfg", DEFAULT_SETUP_LOGGING_STRING
+                + DEFAULT_SETUP_REGISTRATION_STRING
+                + DEFAULT_SETUP_MODEL_STRING
                 + "aggregation.channel = aggregation;"
                 + "aggregation.protocol = MQTT;"
                 + "aggregation.url = tcp://some.broker;"
-                + "aggregation.port = 1883;"},
+                + "aggregation.port = 1883;"
+                + DEFAULT_SETUP_UPDATE_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "description.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "empty.cfg", "Loaded properties are empty"},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "minimal.cfg", "logging.debug = n;logging.standard = n;"
                 + DEFAULT_SETUP_REGISTRATION_STRING
-                + DEFAULT_SETUP_MODEL_STRING},
+                + DEFAULT_SETUP_MODEL_STRING
+                + DEFAULT_SETUP_UPDATE_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_invalidDirectory.cfg", DEFAULT_SETUP_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_noDirectory.cfg", DEFAULT_SETUP_STRING},
-            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_valid.cfg", DEFAULT_SETUP_NO_MODEL_STRING 
-                + "model.directory = ./testdata/model_db;"},
+            {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "modelProperties_valid.cfg", DEFAULT_SETUP_LOGGING_STRING
+                + DEFAULT_SETUP_REGISTRATION_STRING
+                + "model.directory = ./testdata/model_db;"
+                + DEFAULT_SETUP_UPDATE_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "registrationProperties_incomplete.cfg",
                 "Value \"tcp://broker.hivemq.com\" not supported for configuration property \"registration.url\" "
                         + "while protocol \"HTTP\" is defined: Please correct this key's value or the protocol in "
@@ -120,7 +133,8 @@ public class SetupCreationTests {
                  + "registration.port = 1883;"
                  + "registration.url = tcp://broker.hivemq.com;"
                  + "registration.channel = devoptregistration;"
-                 + DEFAULT_SETUP_MODEL_STRING},
+                 + DEFAULT_SETUP_MODEL_STRING
+                 + DEFAULT_SETUP_UPDATE_STRING},
             {TEST_CONFIGURATION_FILES_DIRECTORY_PATH + "scenarios.cfg", DEFAULT_SETUP_LOGGING_STRING
                  + "registration.protocol = MQTT;"
                  + "registration.port = 1883;"
@@ -130,7 +144,8 @@ public class SetupCreationTests {
                  + "aggregation.channel = devoptaggregation;"
                  + "aggregation.protocol = MQTT;"
                  + "aggregation.url = tcp://broker.hivemq.com;"
-                 + "aggregation.port = 1883;"},
+                 + "aggregation.port = 1883;"
+                 + DEFAULT_SETUP_UPDATE_STRING},
             /*
              * TODO: incomplete configuration properties, wrong combinations, values the fail validation, more than a
              *       single args element
